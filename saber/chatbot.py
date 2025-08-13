@@ -26,7 +26,18 @@ class Chatbot:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
+    def get_user_prompt(self) -> str:
+        """Gets user's prompt from the chat interface.
+        
+        Returns:
+            A string of the user's prompt.
+        """
+        if prompt := st.chat_input():
+            return prompt
+        return ""
+
     def run(self):
         """Run the chatbot."""
         st.title(f"{self.name}")
         self.show_message_history()
+        prompt = self.get_user_prompt()
