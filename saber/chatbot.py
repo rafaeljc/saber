@@ -52,6 +52,17 @@ class Chatbot:
         with st.chat_message(role):
             st.markdown(content)
 
+    def get_assistant_response(self, prompt: str) -> str:
+        """Gets assistant's response based on the user's prompt.
+        
+        Args:
+            prompt: The user's prompt.
+
+        Returns:
+            A string of the assistant's response.
+        """
+        return f"Echo: {prompt}" 
+
     def run(self):
         """Run the chatbot."""
         st.title(f"{self.name}")
@@ -59,3 +70,6 @@ class Chatbot:
         prompt = self.get_user_prompt()
         if prompt:
             self.show_message(role="user", content=prompt)
+            response = self.get_assistant_response(prompt)
+            if response:
+                self.show_message(role="assistant", content=response)
