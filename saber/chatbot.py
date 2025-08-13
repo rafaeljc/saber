@@ -35,9 +35,27 @@ class Chatbot:
         if prompt := st.chat_input():
             return prompt
         return ""
+    
+    def show_message(self, role: str, content: str):
+        """Displays a message in the chat interface.
+        
+        Args:
+            role: The role of the message sender ("user" or "assistant").
+            content: The content of the message.
+
+        Raises:
+            ValueError: If the role is not "user" or "assistant".
+        """
+        if role not in ["user", "assistant"]:
+            raise ValueError("Role must be either 'user' or 'assistant'.")
+        st.session_state.messages.append({"role": role, "content": content})
+        with st.chat_message(role):
+            st.markdown(content)
 
     def run(self):
         """Run the chatbot."""
         st.title(f"{self.name}")
         self.show_message_history()
         prompt = self.get_user_prompt()
+        if prompt:
+            self.show_message(role="user", content=prompt)
