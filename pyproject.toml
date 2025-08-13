@@ -5,3 +5,6 @@ description = "Smart Assistant for Better Engineering and Research"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
+
+[project.scripts]
+saber = "saber.app:run"
