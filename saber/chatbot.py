@@ -1,4 +1,5 @@
-    
+import streamlit as st
+
 class Chatbot:
     """Implements the chatbot user interface and functionalities
 
@@ -16,4 +17,4 @@ class Chatbot:
 
     def run(self):
         """Run the chatbot."""
-        print(f"Hello, I'm {self.name}!")
+        st.title(f"{self.name}")
