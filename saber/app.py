@@ -1,4 +1,5 @@
 import subprocess
+from saber import Chatbot
 
 def run():
     """Run the application from the command line.
@@ -16,7 +17,8 @@ def run():
         print("Application stopped by user.")
 
 def main():
-    print("Hello, I'm S.A.B.E.R.!")
+    saber = Chatbot()
+    saber.run()
 
 if __name__ == "__main__":
     main()
