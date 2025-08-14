@@ -107,16 +107,19 @@ class Chatbot:
         with st.chat_message(role):
             st.markdown(message.content)
 
-    def get_assistant_response(self, prompt: str) -> str:
-        """Gets assistant's response based on the user's prompt.
-        
-        Args:
-            prompt: The user's prompt.
+    def get_assistant_response(self) -> AIMessage | None:
+        """Gets assistant's response based on the message history.
 
         Returns:
-            A string of the assistant's response.
+            A AIMessage of the assistant's response.
         """
-        return f"Echo: {prompt}" 
+        messages = st.session_state.messages
+        response = st.session_state.model_app.invoke({"messages": messages})
+        if response and "messages" in response:
+            message = response["messages"][-1]
+            messages.append(message)
+            return message
+        return None
 
     def run(self):
         """Run the chatbot."""
