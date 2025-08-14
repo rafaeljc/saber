@@ -78,12 +78,8 @@ class Chatbot:
 
     def show_message_history(self):
         """Displays the message history."""
-        if len(st.session_state.messages) == 0:
-            with st.chat_message("assistant"):
-                st.markdown("Hello! How can I assist you today?")
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+            self.show_message(message)
 
     def get_user_prompt(self) -> str:
         """Gets user's prompt from the chat interface.
