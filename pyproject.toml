@@ -5,6 +5,9 @@ description = "Smart Assistant for Better Engineering and Research"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "langchain>=0.3.27",
+    "langchain-google-genai>=2.1.9",
+    "langgraph>=0.6.5",
     "streamlit>=1.48.1",
 ]
 
