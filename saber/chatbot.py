@@ -2,6 +2,8 @@ import os
 import getpass as gp
 import streamlit as st
 
+from langgraph.graph import MessagesState
+
 class Chatbot:
     """Implements the chatbot user interface and functionalities
 
@@ -30,6 +32,18 @@ class Chatbot:
             )
         if not st.session_state.get("messages"):
             st.session_state.messages = []
+
+    def call_model(self, state: MessagesState) -> dict:
+        """Calls the model with the current messages and returns the response.
+        
+        Args:
+            state: The current state of the messages.
+
+        Returns:
+            A dictionary containing the response from the model.
+        """
+        response = st.session_state.model.invoke(state["messages"])
+        return {"messages": response}        
 
     def show_message_history(self):
         """Displays the message history."""
