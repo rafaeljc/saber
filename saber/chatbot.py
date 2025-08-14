@@ -40,6 +40,7 @@ class Chatbot:
             os.environ["GOOGLE_API_KEY"] = gp.getpass(
                 "Please, enter your Google API key: "
             )
+        self.init_model()
         if not st.session_state.get("messages"):
             st.session_state.messages = []
 
