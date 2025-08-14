@@ -82,15 +82,17 @@ class Chatbot:
         for message in st.session_state.messages:
             self.show_message(message)
 
-    def get_user_prompt(self) -> str:
+    def get_user_prompt(self) -> HumanMessage | None:
         """Gets user's prompt from the chat interface.
         
         Returns:
-            A string of the user's prompt.
+            A HumanMessage containing the user's prompt.
         """
         if prompt := st.chat_input():
-            return prompt
-        return ""
+            message = HumanMessage(prompt)
+            st.session_state.messages.append(message)
+            return message
+        return None
     
     def show_message(self, message: HumanMessage | AIMessage):
         """Displays a message in the chat interface.
