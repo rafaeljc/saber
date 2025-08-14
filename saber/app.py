@@ -12,7 +12,7 @@ def run():
         $ saber
     """
     try:
-        subprocess.run(["python", __file__])
+        subprocess.run(["streamlit", "run", __file__])
     except KeyboardInterrupt:
         print("Application stopped by user.")
 
