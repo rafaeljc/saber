@@ -127,7 +127,7 @@ class Chatbot:
         self.show_message_history()
         prompt = self.get_user_prompt()
         if prompt:
-            self.show_message(role="user", content=prompt)
-            response = self.get_assistant_response(prompt)
+            self.show_message(prompt)
+            response = self.get_assistant_response()
             if response:
-                self.show_message(role="assistant", content=response)
+                self.show_message(response)
