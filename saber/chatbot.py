@@ -49,7 +49,7 @@ class Chatbot:
         # Initialize the model if not already set
         if not st.session_state.get("model"):
             st.session_state.model = init_chat_model(
-                model_name="gemini-2.5-flash",
+                model="gemini-2.5-flash",
                 model_provider="google_genai",
             )
         # Initialize the workflow if not already set
