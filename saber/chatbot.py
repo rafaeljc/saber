@@ -22,11 +22,11 @@ class Chatbot:
         # variable.
         #
         # Proper way to set the API key as an environment variable:
-        #   $ read -s GOOGLE_GENAI_API_KEY
-        #   $ export GOOGLE_GENAI_API_KEY
-        if not os.environ.get("GOOGLE_GENAI_API_KEY"):
-            os.environ["GOOGLE_GENAI_API_KEY"] = gp.getpass(
-                "Please, enter your Google GenAI API key: "
+        #   $ read -s GOOGLE_API_KEY
+        #   $ export GOOGLE_API_KEY
+        if not os.environ.get("GOOGLE_API_KEY"):
+            os.environ["GOOGLE_API_KEY"] = gp.getpass(
+                "Please, enter your Google API key: "
             )
         if not st.session_state.get("messages"):
             st.session_state.messages = []
