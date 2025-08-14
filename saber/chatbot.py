@@ -2,7 +2,13 @@ import os
 import getpass as gp
 import streamlit as st
 
-from langgraph.graph import MessagesState
+from langchain.chat_models import init_chat_model
+from langgraph.graph import (
+    StateGraph,
+    MessagesState,
+    START,
+)
+from langgraph.checkpoint.memory import MemorySaver
 
 class Chatbot:
     """Implements the chatbot user interface and functionalities
@@ -32,6 +38,27 @@ class Chatbot:
             )
         if not st.session_state.get("messages"):
             st.session_state.messages = []
+
+    def init_model(self):
+        """Sets up the model for the chatbot."""
+        # Initialize the model if not already set
+        if not st.session_state.get("model"):
+            st.session_state.model = init_chat_model(
+                model_name="gemini-2.5-flash",
+                model_provider="google_genai",
+            )
+        # Initialize the workflow if not already set
+        if not st.session_state.get("workflow"):
+            workflow = StateGraph(state_schema=MessagesState)
+            workflow.add_edge(START, "model")
+            workflow.add_node("model", self.call_model)
+            st.session_state.workflow = workflow
+        # Compile the workflow if not already compiled
+        if not st.session_state.get("model_app"):
+            # Save the model state in memory
+            memory = MemorySaver()
+            model_app = workflow.compile(checkpointer=memory)
+            st.session_state.model_app = model_app
 
     def call_model(self, state: MessagesState) -> dict:
         """Calls the model with the current messages and returns the response.
