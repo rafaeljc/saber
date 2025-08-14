@@ -1,3 +1,5 @@
+import os
+import getpass as gp
 import streamlit as st
 
 class Chatbot:
@@ -14,6 +16,18 @@ class Chatbot:
             name: Defines the name of the chatbot. (Default: "S.A.B.E.R.")
         """
         self.name = name
+        # For security reasons, we do not store the API key in the code or in
+        # any file like a ".env" or a streamlit "secrets.toml". The user must
+        # enter the API key manually when prompted or set it as an environment 
+        # variable.
+        #
+        # Proper way to set the API key as an environment variable:
+        #   $ read -s GOOGLE_GENAI_API_KEY
+        #   $ export GOOGLE_GENAI_API_KEY
+        if not os.environ.get("GOOGLE_GENAI_API_KEY"):
+            os.environ["GOOGLE_GENAI_API_KEY"] = gp.getpass(
+                "Please, enter your Google GenAI API key: "
+            )
         if not st.session_state.get("messages"):
             st.session_state.messages = []
 
