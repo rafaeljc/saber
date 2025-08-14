@@ -9,6 +9,10 @@ from langgraph.graph import (
     START,
 )
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+)
 
 class Chatbot:
     """Implements the chatbot user interface and functionalities
@@ -91,21 +95,18 @@ class Chatbot:
             return prompt
         return ""
     
-    def show_message(self, role: str, content: str):
+    def show_message(self, message: HumanMessage | AIMessage):
         """Displays a message in the chat interface.
         
         Args:
-            role: The role of the message sender ("user" or "assistant").
-            content: The content of the message.
-
-        Raises:
-            ValueError: If the role is not "user" or "assistant".
+            message: The message to display.
         """
-        if role not in ["user", "assistant"]:
-            raise ValueError("Role must be either 'user' or 'assistant'.")
-        st.session_state.messages.append({"role": role, "content": content})
+        if isinstance(message, HumanMessage):
+            role = "user"
+        elif isinstance(message, AIMessage):
+            role = "assistant"
         with st.chat_message(role):
-            st.markdown(content)
+            st.markdown(message.content)
 
     def get_assistant_response(self, prompt: str) -> str:
         """Gets assistant's response based on the user's prompt.
