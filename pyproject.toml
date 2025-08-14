@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Smart Assistant for Better Engineering and Research"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "streamlit>=1.48.1",
+]
 
 [project.scripts]
 saber = "saber.app:run"
