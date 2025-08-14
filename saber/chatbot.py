@@ -64,6 +64,13 @@ class Chatbot:
             memory = MemorySaver()
             model_app = workflow.compile(checkpointer=memory)
             st.session_state.model_app = model_app
+        # Initialize the model_config if not already set
+        if not st.session_state.get("model_config"):
+            st.session_state.model_config = {
+                "configurable": {
+                    "thread_id": "abc123",
+                }
+            }
 
     def call_model(self, state: MessagesState) -> dict:
         """Calls the model with the current messages and returns the response.
@@ -114,7 +121,10 @@ class Chatbot:
             A AIMessage of the assistant's response.
         """
         messages = st.session_state.messages
-        response = st.session_state.model_app.invoke({"messages": messages})
+        response = st.session_state.model_app.invoke(
+            {"messages": messages},
+            st.session_state.model_config
+        )
         if response and "messages" in response:
             message = response["messages"][-1]
             messages.append(message)
