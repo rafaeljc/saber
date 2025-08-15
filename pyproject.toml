@@ -61,3 +61,6 @@ docstring-code-format = true
 extend-select = [
     "E501",     # line too long
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
