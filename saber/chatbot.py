@@ -14,6 +14,7 @@ from langchain_core.messages import (
     AIMessage,
 )
 
+
 class Chatbot:
     """Implements the chatbot user interface and functionalities
 
@@ -23,14 +24,14 @@ class Chatbot:
 
     def __init__(self, name: str = "S.A.B.E.R."):
         """Initializes the chatbot with a name and does the initial setup.
-        
+
         Args:
             name: Defines the name of the chatbot. (Default: "S.A.B.E.R.")
         """
         self.name = name
         # For security reasons, we do not store the API key in the code or in
         # any file like a ".env" or a streamlit "secrets.toml". The user must
-        # enter the API key manually when prompted or set it as an environment 
+        # enter the API key manually when prompted or set it as an environment
         # variable.
         #
         # Proper way to set the API key as an environment variable:
@@ -74,7 +75,7 @@ class Chatbot:
 
     def call_model(self, state: MessagesState) -> dict:
         """Calls the model with the current messages and returns the response.
-        
+
         Args:
             state: The current state of the messages.
 
@@ -82,7 +83,7 @@ class Chatbot:
             A dictionary containing the response from the model.
         """
         response = st.session_state.model.invoke(state["messages"])
-        return {"messages": response}        
+        return {"messages": response}
 
     def show_message_history(self):
         """Displays the message history."""
@@ -91,7 +92,7 @@ class Chatbot:
 
     def get_user_prompt(self) -> HumanMessage | None:
         """Gets user's prompt from the chat interface.
-        
+
         Returns:
             A HumanMessage containing the user's prompt.
         """
@@ -100,10 +101,10 @@ class Chatbot:
             st.session_state.messages.append(message)
             return message
         return None
-    
+
     def show_message(self, message: HumanMessage | AIMessage):
         """Displays a message in the chat interface.
-        
+
         Args:
             message: The message to display.
         """
@@ -122,8 +123,7 @@ class Chatbot:
         """
         messages = st.session_state.messages
         response = st.session_state.model_app.invoke(
-            {"messages": messages},
-            st.session_state.model_config
+            {"messages": messages}, st.session_state.model_config
         )
         if response and "messages" in response:
             message = response["messages"][-1]
