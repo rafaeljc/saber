@@ -1,4 +1,5 @@
 import subprocess
+import streamlit as st
 from saber import Chatbot
 
 
@@ -19,8 +20,8 @@ def run():
 
 
 def main():
-    saber = Chatbot()
-    saber.run()
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = Chatbot()
 
 
 if __name__ == "__main__":
