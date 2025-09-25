@@ -1,7 +1,18 @@
+import logging
 import subprocess
 import streamlit as st
 from saber import Chatbot
 from saber.routes import routes
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler(),
+    ]
+)
 
 
 def run():
