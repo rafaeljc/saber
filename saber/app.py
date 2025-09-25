@@ -1,6 +1,7 @@
 import subprocess
 import streamlit as st
 from saber import Chatbot
+from saber.routes import routes
 
 
 def run():
@@ -22,6 +23,7 @@ def run():
 def main():
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = Chatbot()
+    st.navigation(routes).run()
 
 
 if __name__ == "__main__":
