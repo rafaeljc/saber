@@ -56,3 +56,31 @@ class Chatbot:
         """
         self._model = None
         self._agent = None
+
+    def set_model_provider(self, model_provider: str | None) -> None:
+        """Set the model provider.
+        
+        Args:
+            model_provider (str | None): The model provider to set. If None,
+                the model provider is unset.
+        Raises:
+            TypeError: If model_provider is not a string or None.
+            ValueError: If model_provider is not supported or empty.
+        """
+        if model_provider is not None:
+            self._validate_string(model_provider, "Model provider")
+            if model_provider not in self._SUPPORTED_PROVIDERS:
+                error_msg = (f"Model provider '{model_provider}' is not "
+                    f"supported.")
+                self._logger.error(error_msg)
+                raise ValueError(error_msg)
+        if model_provider != self._model_provider:
+            self._model_provider = model_provider
+            # Reset model name when provider changes to avoid invalid
+            # combinations of provider and model name.
+            self._model_name = None
+            self._reset_model_and_agent()
+
+    def get_model_provider(self) -> str | None:
+        """Get the model provider."""
+        return self._model_provider
