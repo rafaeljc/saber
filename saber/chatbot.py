@@ -10,6 +10,21 @@ class Chatbot:
         "google_genai",
     }
 
+    _SUPPORTED_MODELS_BY_PROVIDER = {
+        "openai": {
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-3.5-turbo",
+        },
+        "google_genai": {
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+        },
+    }
+
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._model_provider = None
