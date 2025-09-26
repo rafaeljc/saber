@@ -41,3 +41,13 @@ class Chatbot:
             error_msg = f"{var_name} must be a non-empty string."
             self._logger.error(error_msg)
             raise ValueError(error_msg)
+
+    def _reset_model_and_agent(self) -> None:
+        """Reset the model and agent to their initial state.
+        
+        Must be called when any parameter affecting them is changed. This
+        ensures that they will be re-initialized with the new parameters only
+        when next used.
+        """
+        self._model = None
+        self._agent = None
