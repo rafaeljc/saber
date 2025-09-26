@@ -5,6 +5,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 class Chatbot:
     """Handle the data and provide functionalities of the chatbot."""
 
+    _SUPPORTED_PROVIDERS = {
+        "openai",
+        "google_genai",
+    }
+
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._model_provider = None
