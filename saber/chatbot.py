@@ -21,3 +21,23 @@ class Chatbot:
         self._agent = None
         self._agent_config = {"configurable": {"thread_id": "1"}}
         self._chat_history = []
+
+    def _validate_string(self, value: str, var_name: str) -> None:
+        """Validate that a variable is a non-empty string.
+        
+        Args:
+            value (str): The value to validate.
+            var_name (str): The name of the variable (for error messages).
+        Raises:
+            TypeError: If the value is not a string.
+            ValueError: If the string is empty.
+        """
+        if not isinstance(value, str):
+            error_msg = (f"{var_name} must be a string, got "
+                f"{type(value).__name__}")
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        if value == "":
+            error_msg = f"{var_name} must be a non-empty string."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
