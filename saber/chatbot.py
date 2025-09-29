@@ -163,3 +163,21 @@ class Chatbot:
         """Get the model temperature."""
         return self._model_temperature
     
+    def set_system_message(self, system_message: str) -> None:
+        """Set the system message.
+        
+        Args:
+            system_message (str): The system message to set.
+        Raises:
+            TypeError: If system_message is not a string.
+            ValueError: If system_message is empty.
+        """
+        self._validate_string(system_message, "System message")
+        if system_message != self._system_message:
+            self._system_message = system_message
+            self._reset_model_and_agent()
+
+    def get_system_message(self) -> str:
+        """Get the system message."""
+        return self._system_message
+
