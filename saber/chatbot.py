@@ -133,3 +133,33 @@ class Chatbot:
     def get_model_name(self) -> str | None:
         """Get the model name."""
         return self._model_name
+
+    def set_model_temperature(self, model_temperature: float) -> None:
+        """Set the model temperature.
+        
+        Args:
+            model_temperature (float): The model temperature to set. Must be
+                in the range [0.0, 1.0].
+        Raises:
+            TypeError: If model_temperature is not a number.
+            ValueError: If model_temperature is out of range.
+        """
+        if not isinstance(model_temperature, (int, float)):
+            error_msg = (f"Model temperature must be a number, got "
+                f"{type(model_temperature).__name__}")
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        model_temperature = float(model_temperature)
+        if not (0.0 <= model_temperature <= 1.0):
+            error_msg = (f"Model temperature {model_temperature} is out of "
+                f"range [0.0, 1.0]")
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if model_temperature != self._model_temperature:
+            self._model_temperature = model_temperature
+            self._reset_model_and_agent()
+
+    def get_model_temperature(self) -> float:
+        """Get the model temperature."""
+        return self._model_temperature
+    
