@@ -191,3 +191,24 @@ class Chatbot:
     def get_system_message(self) -> str:
         """Get the system message."""
         return self._system_message
+
+    def set_api_key(self, model_provider: str, api_key: str) -> None:
+        """Set the API key for a model provider.
+        
+        Args:
+            model_provider (str): The model provider.
+            api_key (str): The API key to set.
+        Raises:
+            TypeError: If model_provider or api_key is not a string.
+            ValueError: If model_provider is not supported or empty, or if
+                api_key is empty.
+        """
+        self._validate_model_provider(model_provider)
+        self._validate_string(api_key, "API key")
+        if api_key != self._api_key.get(model_provider, None):
+            self._api_key[model_provider] = api_key
+            self._reset_model_and_agent()
+
+    def get_api_key(self, model_provider: str) -> str | None:
+        """Get the API key for a model provider."""
+        return self._api_key.get(model_provider, None)
