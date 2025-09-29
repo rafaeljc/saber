@@ -1,5 +1,7 @@
 import logging
 from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.language_models import BaseChatModel
+from langchain.chat_models import init_chat_model
 
 
 class Chatbot:
@@ -87,6 +89,39 @@ class Chatbot:
         """
         self._model = None
         self._agent = None
+
+    def _init_model(self) -> BaseChatModel:
+        """Initialize the chat model.
+        
+        Returns:
+            BaseChatModel: The initialized chat model.
+        Raises:
+            ValueError: If model provider, model name, or API key is not set.
+            Exception: If the model initialization fails.
+        """
+        if self._model_provider is None:
+            error_msg = "Model provider is not set."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if self._model_name is None:
+            error_msg = "Model name is not set."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if self._api_key.get(self._model_provider, None) is None:
+            error_msg = (f"API key for model provider '{self._model_provider}' "
+                f"is not set.")
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        try:
+            return init_chat_model(
+                f"{self._model_provider}:{self._model_name}",
+                temperature=self._model_temperature,
+                api_key=self._api_key[self._model_provider],
+            )
+        except Exception as e:
+            error_msg = f"Failed to initialize chat model: {e}"
+            self._logger.error(error_msg)
+            raise e
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
