@@ -61,6 +61,22 @@ class Chatbot:
             error_msg = f"{var_name} must be a non-empty string."
             self._logger.error(error_msg)
             raise ValueError(error_msg)
+        
+    def _validate_model_provider(self, model_provider: str) -> None:
+        """Validate the model provider.
+        
+        Args:
+            model_provider (str): The model provider.
+        Raises:
+            TypeError: If model_provider is not a string.
+            ValueError: If model_provider is not supported or empty.
+        """
+        self._validate_string(model_provider, "Model provider")
+        if model_provider not in self._SUPPORTED_PROVIDERS:
+            error_msg = (f"Model provider '{model_provider}' is not "
+                f"supported.")
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
 
     def _reset_model_and_agent(self) -> None:
         """Reset the model and agent to their initial state.
@@ -83,12 +99,7 @@ class Chatbot:
             ValueError: If model_provider is not supported or empty.
         """
         if model_provider is not None:
-            self._validate_string(model_provider, "Model provider")
-            if model_provider not in self._SUPPORTED_PROVIDERS:
-                error_msg = (f"Model provider '{model_provider}' is not "
-                    f"supported.")
-                self._logger.error(error_msg)
-                raise ValueError(error_msg)
+            self._validate_model_provider(model_provider)
         if model_provider != self._model_provider:
             self._model_provider = model_provider
             # Reset model name when provider changes to avoid invalid
@@ -180,4 +191,3 @@ class Chatbot:
     def get_system_message(self) -> str:
         """Get the system message."""
         return self._system_message
-
