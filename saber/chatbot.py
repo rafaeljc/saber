@@ -2,6 +2,8 @@ import logging
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import create_react_agent
 
 
 class Chatbot:
@@ -120,6 +122,29 @@ class Chatbot:
             )
         except Exception as e:
             error_msg = f"Failed to initialize chat model: {e}"
+            self._logger.error(error_msg)
+            raise e
+        
+    def _create_agent(self) -> CompiledStateGraph:
+        """Create the agent.
+        
+        Returns:
+            CompiledStateGraph: The created agent.
+        Raises:
+            ValueError: If model provider, model name, or API key is not set.
+            Exception: If the model initialization or agent creation fails.
+        """
+        if self._model is None:
+            self._model = self._init_model()
+        try:
+            return create_react_agent(
+                model=self._model,
+                tools=[],
+                checkpointer=self._checkpointer,
+                prompt=self._system_message,
+            )
+        except Exception as e:
+            error_msg = f"Failed to create agent: {e}"
             self._logger.error(error_msg)
             raise e
 
