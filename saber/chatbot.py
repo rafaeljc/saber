@@ -1,9 +1,12 @@
+import asyncio
+import atexit
 import logging
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
+from typing import Any, Coroutine
 
 
 class Chatbot:
@@ -45,6 +48,84 @@ class Chatbot:
         self._agent = None
         self._agent_config = {"configurable": {"thread_id": "1"}}
         self._chat_history = []
+        self._event_loop = None
+        atexit.register(self._cleanup_event_loop)
+
+    def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
+        """Setup the event loop for asynchronous operations.
+        
+        Returns:
+            asyncio.AbstractEventLoop: The event loop.
+        Raises:
+            Exception: If unable to create or get an event loop.
+        """
+        try:
+            event_loop = asyncio.get_event_loop()
+            if event_loop.is_closed():
+                event_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(event_loop)
+        except RuntimeError:
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
+        except Exception as e:
+            error_msg = f"Error setting up event loop: {e}"
+            self._logger.error(error_msg)
+            raise e
+        return event_loop
+    
+    def _cleanup_event_loop(self) -> None:
+        """Cleanup the event loop and resources.
+        
+        Ensures that any pending tasks are cancelled and the event loop is
+        properly closed when the application exits.
+
+        Using atexit to register this cleanup function is more reliable than
+        calling it on __del__ method, as __del__ may not be called in some
+        situations (e.g., if there are circular references).
+        """
+        if self._event_loop and not self._event_loop.is_closed():
+            try:
+                pending = asyncio.all_tasks(self._event_loop)
+                for task in pending:
+                    task.cancel()
+            except RuntimeError:
+                # No tasks to cancel
+                pass
+            self._event_loop.close()
+
+    def _run_async(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
+        """Run asynchronous coroutine using managed event loop.
+        
+        Args:
+            coroutine (Coroutine): The coroutine to run.
+        Returns:
+            Any: The result of the coroutine.
+        Raises:
+            TypeError: If the provided argument is not a coroutine.
+            Exception: If the coroutine execution fails.
+            asyncio.CancelledError: If the coroutine is cancelled.
+        """
+        if not isinstance(coroutine, Coroutine):
+            error_msg = (
+                f"Invalid coroutine type. Got {type(coroutine).__name__}")
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        if self._event_loop is None or self._event_loop.is_closed():
+            self._event_loop = self._get_or_create_event_loop()
+        if self._event_loop.is_running():
+            task = asyncio.create_task(coroutine)
+            return task
+        else:
+            try:
+                return self._event_loop.run_until_complete(coroutine)
+            except asyncio.CancelledError as e:
+                warning_msg = f"Coroutine was cancelled: {e}"
+                self._logger.warning(warning_msg)
+                raise e                
+            except Exception as e:
+                error_msg = f"Unexpected error in async execution: {e}"
+                self._logger.error(error_msg)
+                raise e
 
     def _validate_string(self, value: str, var_name: str) -> None:
         """Validate that a variable is a non-empty string.
