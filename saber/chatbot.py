@@ -278,7 +278,11 @@ class Chatbot:
             self._reset_model_and_agent()
 
     def get_model_provider(self) -> str | None:
-        """Get the model provider."""
+        """Get the model provider.
+
+        Returns:
+            str | None: The model provider, or None if not set.
+        """
         return self._model_provider
 
     def set_model_name(self, model_name: str | None) -> None:
@@ -312,7 +316,11 @@ class Chatbot:
             self._reset_model_and_agent()
 
     def get_model_name(self) -> str | None:
-        """Get the model name."""
+        """Get the model name.
+        
+        Returns:
+            str | None: The model name, or None if not set.
+        """
         return self._model_name
 
     def set_model_temperature(self, model_temperature: float) -> None:
@@ -341,7 +349,11 @@ class Chatbot:
             self._reset_model_and_agent()
 
     def get_model_temperature(self) -> float:
-        """Get the model temperature."""
+        """Get the model temperature.
+        
+        Returns:
+            float: The model temperature.
+        """
         return self._model_temperature
     
     def set_system_message(self, system_message: str) -> None:
@@ -359,7 +371,11 @@ class Chatbot:
             self._reset_model_and_agent()
 
     def get_system_message(self) -> str:
-        """Get the system message."""
+        """Get the system message.
+        
+        Returns:
+            str: The system message.
+        """
         return self._system_message
 
     def set_api_key(self, model_provider: str, api_key: str) -> None:
@@ -380,7 +396,13 @@ class Chatbot:
             self._reset_model_and_agent()
 
     def get_api_key(self, model_provider: str) -> str | None:
-        """Get the API key for a model provider."""
+        """Get the API key for a model provider.
+        
+        Args:
+            model_provider (str): The model provider.
+        Returns:
+            str | None: The API key for the model provider, or None if not set.
+        """
         return self._api_key.get(model_provider, None)
         
     def get_response(self, user_message: HumanMessage) -> AIMessage | None:
