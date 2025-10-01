@@ -402,3 +402,11 @@ class Chatbot:
             raise TypeError(error_msg)
         return self._run_async(self._async_get_response(user_message))
     
+    def get_chat_history(self) -> list[HumanMessage | AIMessage]:
+        """Return the chat history.
+
+        Returns:
+            list[HumanMessage | AIMessage]: The chat history.
+        """
+        return self._chat_history.copy()
+    
