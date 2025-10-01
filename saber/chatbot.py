@@ -7,6 +7,7 @@ from langchain.chat_models import init_chat_model
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine
+from langchain_core.messages import HumanMessage, AIMessage
 
 
 class Chatbot:
@@ -46,7 +47,6 @@ class Chatbot:
         self._checkpointer = InMemorySaver()
         self._model = None
         self._agent = None
-        self._agent_config = {"configurable": {"thread_id": "1"}}
         self._chat_history = []
         self._event_loop = None
         atexit.register(self._cleanup_event_loop)
@@ -228,6 +228,35 @@ class Chatbot:
             error_msg = f"Failed to create agent: {e}"
             self._logger.error(error_msg)
             raise e
+        
+    async def _async_get_response(
+            self,
+            user_message: HumanMessage
+        ) -> AIMessage | None:
+        """Asynchronously get a response from the chatbot.
+
+        Args:
+            user_message (HumanMessage): The user's message.
+        Returns:
+            AIMessage | None: The agent's response message, or None if an
+                error occurred.
+        Raises:
+            Exception: If there is an error getting the response from the agent.
+        """
+        if self._agent is None:
+            self._agent = self._create_agent()
+        try:
+            response = await self._agent.ainvoke(
+                {"messages": [user_message]},
+                {"configurable": {"thread_id": "1"}},
+            )
+            self._chat_history.append(user_message)
+            agent_message = response["messages"][-1]
+            self._chat_history.append(agent_message)
+            return agent_message
+        except Exception as e:
+            self._logger.error(f"Error getting response: {e}")
+            raise e
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
@@ -353,3 +382,23 @@ class Chatbot:
     def get_api_key(self, model_provider: str) -> str | None:
         """Get the API key for a model provider."""
         return self._api_key.get(model_provider, None)
+        
+    def get_response(self, user_message: HumanMessage) -> AIMessage | None:
+        """Get a response from the chatbot.
+        
+        Args:
+            user_message (HumanMessage): The user's message.
+        Returns:
+            AIMessage | None: The agent's response message, or None if an
+                error occurred.
+        Raises:
+            TypeError: If user_message is not a HumanMessage.
+            Exception: If there is an error getting the response from the agent.
+        """
+        if not isinstance(user_message, HumanMessage):
+            error_msg = (f"user_message must be a HumanMessage, got "
+                f"{type(user_message).__name__}")
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        return self._run_async(self._async_get_response(user_message))
+    
