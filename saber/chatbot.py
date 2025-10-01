@@ -432,3 +432,27 @@ class Chatbot:
         """
         return self._chat_history.copy()
     
+    def get_supported_providers(self) -> set[str]:
+        """Get the set of supported model providers.
+
+        Returns:
+            set[str]: The supported model providers.
+        """
+        return self._SUPPORTED_PROVIDERS.copy()
+    
+    def get_supported_models_by_provider(self, model_provider: str) -> set[str]:
+        """Get the set of supported models for a given provider.
+
+        Args:
+            model_provider (str): The model provider.
+        Returns:
+            set[str]: The supported models for the provider, or an empty set if
+                not found.
+        """
+        supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
+            model_provider, 
+            None,
+        )
+        if supported_models:
+            return supported_models.copy()
+        return set()
