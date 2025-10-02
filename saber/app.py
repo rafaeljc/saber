@@ -1,5 +1,18 @@
+import logging
 import subprocess
+import streamlit as st
 from saber import Chatbot
+from saber.routes import routes
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler(),
+    ]
+)
 
 
 def run():
@@ -19,8 +32,9 @@ def run():
 
 
 def main():
-    saber = Chatbot()
-    saber.run()
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = Chatbot()
+    st.navigation(routes).run()
 
 
 if __name__ == "__main__":
