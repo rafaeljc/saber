@@ -7,4 +7,9 @@ routes = (
         title="Chat",
         icon="💬",
     ),
+    st.Page(
+        "views/settings.py",
+        title="Settings",
+        icon="⚙️",
+    ),
 )
