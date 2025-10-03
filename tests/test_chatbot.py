@@ -127,3 +127,46 @@ class TestModelNameAttributeManagement:
         with pytest.raises(ValueError):
             chatbot_no_provider.set_model_name(valid_string)
         assert chatbot_no_provider.get_model_name() == prev_value
+
+
+class TestModelTemperatureAttributeManagement:
+    """Tests model temperature attribute management in the Chatbot class."""
+
+    @pytest.fixture
+    def chatbot(self):
+        """Create a Chatbot instance with a predefined model temperature."""
+        cb = Chatbot()
+        cb.set_model_temperature(0.5)
+        return cb
+
+    def test_set_invalid_type(self, chatbot):
+        """Test setting an invalid type raises TypeError and does not change 
+        the value.
+        """
+        prev_value = chatbot.get_model_temperature()
+        invalid_type = "invalid_type"
+        with pytest.raises(TypeError):
+            chatbot.set_model_temperature(invalid_type)
+        assert chatbot.get_model_temperature() == prev_value
+
+    def test_set_out_of_bounds(self, chatbot):
+        """Test setting out-of-bounds values raises ValueError and does not 
+        change the value.
+        """
+        prev_value = chatbot.get_model_temperature()
+        delta = 1e-12
+        low = 0.0 - delta
+        with pytest.raises(ValueError):
+            chatbot.set_model_temperature(low)
+        assert chatbot.get_model_temperature() == prev_value
+        high = 1.0 + delta
+        with pytest.raises(ValueError):
+            chatbot.set_model_temperature(high)
+        assert chatbot.get_model_temperature() == prev_value
+
+    def test_set_valid_values(self, chatbot):
+        """Test setting valid values updates the temperature correctly."""
+        valid_values = [0, 0.777, 1]
+        for value in valid_values:
+            chatbot.set_model_temperature(value)
+            assert chatbot.get_model_temperature() == float(value)
