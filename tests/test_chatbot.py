@@ -170,3 +170,47 @@ class TestModelTemperatureAttributeManagement:
         for value in valid_values:
             chatbot.set_model_temperature(value)
             assert chatbot.get_model_temperature() == float(value)
+
+
+class TestSystemMessageAttributeManagement:
+    """Tests system_message attribute management in the Chatbot class."""
+
+    @pytest.fixture
+    def chatbot(self):
+        """Create a Chatbot instance with a predefined system message."""
+        cb = Chatbot()
+        cb.set_system_message("Initial system message.")
+        return cb
+
+    def test_set_invalid_type(self, chatbot):
+        """Test setting an invalid type raises TypeError and does not change 
+        the value.
+        """
+        prev_value = chatbot.get_system_message()
+        invalid_type = 12345
+        with pytest.raises(TypeError):
+            chatbot.set_system_message(invalid_type)
+        assert chatbot.get_system_message() == prev_value
+
+    def test_set_valid_string(self, chatbot):
+        """Test setting a valid string updates the value correctly."""
+        valid_string = "Updated system message."
+        chatbot.set_system_message(valid_string)
+        assert chatbot.get_system_message() == valid_string
+
+    def test_set_invalid_string(self, chatbot):
+        """Test setting an invalid string raises ValueError and does not change 
+        the value.
+        """
+        prev_value = chatbot.get_system_message()
+        empty_string = ""
+        with pytest.raises(ValueError):
+            chatbot.set_system_message(empty_string)
+        assert chatbot.get_system_message() == prev_value
+
+    def test_set_none(self, chatbot):
+        """Test setting None raises TypeError and does not change the value."""
+        prev_value = chatbot.get_system_message()
+        with pytest.raises(TypeError):
+            chatbot.set_system_message(None)
+        assert chatbot.get_system_message() == prev_value
