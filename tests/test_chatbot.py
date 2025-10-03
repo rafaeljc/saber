@@ -23,14 +23,14 @@ class TestModelProviderAttributeManagement:
             chatbot.set_model_provider(non_valid_type)
         assert chatbot.get_model_provider() == prev_value
 
-    def test_set_valid_string_type(self, chatbot):
-        """Test setting a valid string type updates the value correctly."""
+    def test_set_valid_string(self, chatbot):
+        """Test setting a valid string updates the value correctly."""
         valid_string = "openai"
         chatbot.set_model_provider(valid_string)
         assert chatbot.get_model_provider() == valid_string
 
-    def test_set_invalid_string_values(self, chatbot):
-        """Test setting invalid string values raises ValueError and does not 
+    def test_set_invalid_string(self, chatbot):
+        """Test setting invalid string raises ValueError and does not 
         change the value.
         """
         prev_value = chatbot.get_model_provider()
@@ -43,7 +43,7 @@ class TestModelProviderAttributeManagement:
             chatbot.set_model_provider(empty_string)
         assert chatbot.get_model_provider() == prev_value
 
-    def test_set_none_type(self, chatbot):
+    def test_set_none(self, chatbot):
         """Test setting None updates the value to None."""
         chatbot.set_model_provider(None)
         assert chatbot.get_model_provider() is None
