@@ -130,7 +130,7 @@ class TestModelNameAttributeManagement:
 
 
 class TestModelTemperatureAttributeManagement:
-    """Tests model temperature attribute management in the Chatbot class."""
+    """Tests model_temperature attribute management in the Chatbot class."""
 
     @pytest.fixture
     def chatbot(self):
