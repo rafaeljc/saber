@@ -12,6 +12,14 @@ class TestModelProviderAttributeManagement:
         cb = Chatbot()
         cb.set_model_provider("google_genai")
         return cb
+    
+    @pytest.fixture
+    def chatbot_with_model(self):
+        """Create a Chatbot instance with a predefined model name."""
+        cb = Chatbot()
+        cb.set_model_provider("google_genai")
+        cb.set_model_name("gemini-2.5-flash")
+        return cb
 
     def test_set_invalid_type(self, chatbot):
         """Test setting an invalid type raises TypeError and does not change 
@@ -43,10 +51,13 @@ class TestModelProviderAttributeManagement:
             chatbot.set_model_provider(empty_string)
         assert chatbot.get_model_provider() == prev_value
 
-    def test_set_none(self, chatbot):
+    def test_set_none(self, chatbot, chatbot_with_model):
         """Test setting None updates the value to None."""
         chatbot.set_model_provider(None)
         assert chatbot.get_model_provider() is None
+        chatbot_with_model.set_model_provider(None)
+        assert chatbot_with_model.get_model_provider() is None
+        assert chatbot_with_model.get_model_name() is None
 
 
 class TestModelNameAttributeManagement:
