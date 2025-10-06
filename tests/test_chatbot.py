@@ -214,3 +214,96 @@ class TestSystemMessageAttributeManagement:
         with pytest.raises(TypeError):
             chatbot.set_system_message(None)
         assert chatbot.get_system_message() == prev_value
+
+
+class TestAPIKeyAttributeManagement:
+    """Tests api_key attribute management in the Chatbot class."""
+
+    @pytest.fixture
+    def chatbot(self):
+        """Create a Chatbot instance with no predefined API key."""
+        cb = Chatbot()
+        return cb
+
+    @pytest.fixture
+    def chatbot_with_api_key(self):
+        """Create a Chatbot instance with a predefined API key."""
+        cb = Chatbot()
+        cb.set_api_key("google_genai", "google_genai_api_key")
+        return cb
+
+    def test_set_invalid_type(self, chatbot, chatbot_with_api_key):
+        """Test setting an invalid type raises TypeError and does not change 
+        the value.
+        """
+        valid_provider = "google_genai"
+        valid_api_key = "valid_api_key"
+        invalid_type = 12345
+        prev_value = chatbot_with_api_key.get_api_key(valid_provider)
+        with pytest.raises(TypeError):
+            chatbot_with_api_key.set_api_key(valid_provider, invalid_type)
+        assert chatbot_with_api_key.get_api_key(valid_provider) == prev_value
+        with pytest.raises(TypeError):
+            chatbot.set_api_key(invalid_type, valid_api_key)
+        with pytest.raises(TypeError):
+            chatbot.set_api_key(invalid_type, invalid_type)
+
+    def test_set_valid_string(self, chatbot, chatbot_with_api_key):
+        """Test setting a valid string updates the value correctly."""
+        valid_provider = "openai"
+        valid_api_key = "valid_api_key"
+        chatbot.set_api_key(valid_provider, valid_api_key)
+        assert chatbot.get_api_key(valid_provider) == valid_api_key
+        new_api_key = "new_google_genai_api_key"
+        chatbot_with_api_key.set_api_key("google_genai", new_api_key)
+        assert chatbot_with_api_key.get_api_key("google_genai") == new_api_key
+
+    def test_set_invalid_string(self, chatbot, chatbot_with_api_key):
+        """Test setting an invalid string raises ValueError and does not change 
+        the value.
+        """
+        invalid_provider = "unsupported_provider"
+        empty_provider = ""
+        empty_key = ""
+        valid_provider = "openai"
+        valid_key = "valid_api_key"
+        prev_value = chatbot_with_api_key.get_api_key("google_genai")
+        with pytest.raises(ValueError):
+            chatbot_with_api_key.set_api_key("google_genai", empty_key)
+        assert chatbot_with_api_key.get_api_key("google_genai") == prev_value
+        with pytest.raises(ValueError):
+            chatbot.set_api_key(invalid_provider, valid_key)
+        with pytest.raises(ValueError):
+            chatbot.set_api_key(empty_provider, valid_key)
+        with pytest.raises(ValueError):
+            chatbot.set_api_key(valid_provider, empty_key)
+
+    def test_get_unsupported_provider(self, chatbot):
+        """Test getting an unsupported provider returns None."""
+        assert chatbot.get_api_key("unsupported_provider") is None
+
+    def test_get_no_key_set(self, chatbot):
+        """Test getting a key for a provider with no key set returns None."""
+        assert chatbot.get_api_key("google_genai") is None
+
+    def test_get_none(self, chatbot):
+        """Test getting None as provider returns None."""
+        assert chatbot.get_api_key(None) is None
+
+    def test_set_none(self, chatbot, chatbot_with_api_key):
+        """Test setting None as provider or API key raises TypeError and does 
+        not change the value.
+        """
+        valid_provider = "openai"
+        valid_api_key = "valid_api_key"
+        prev_value = chatbot_with_api_key.get_api_key("google_genai")
+        with pytest.raises(TypeError):
+            chatbot_with_api_key.set_api_key("google_genai", None)
+        assert chatbot_with_api_key.get_api_key("google_genai") == prev_value
+        with pytest.raises(TypeError):
+            chatbot.set_api_key(valid_provider, None)
+        with pytest.raises(TypeError):
+            chatbot.set_api_key(None, None)
+        with pytest.raises(TypeError):
+            chatbot.set_api_key(None, valid_api_key)
+        assert chatbot.get_api_key(None) is None
