@@ -1,4 +1,5 @@
 import pytest
+from langchain_core.messages import HumanMessage
 
 from saber.chatbot import Chatbot
 
@@ -307,3 +308,36 @@ class TestAPIKeyAttributeManagement:
         with pytest.raises(TypeError):
             chatbot.set_api_key(None, valid_api_key)
         assert chatbot.get_api_key(None) is None
+
+
+class TestGetResponseMethod:
+    """Tests get_response method in the Chatbot class."""
+
+    @pytest.fixture
+    def chatbot(self):
+        """Create a Chatbot instance with a predefined model provider."""
+        cb = Chatbot()
+        cb.set_model_provider("google_genai")
+        cb.set_model_name("gemini-2.5-flash")
+        cb.set_api_key("google_genai", "google_genai_api_key")
+        return cb
+
+    def test_get_response_invalid_type(self, chatbot):
+        """Test passing an invalid type to get_response raises TypeError and 
+        does not change the chat history.
+        """
+        invalid_type = 12345
+        with pytest.raises(TypeError):
+            chatbot.get_response(invalid_type)
+        assert len(chatbot.get_chat_history()) == 0
+
+    def test_get_response_unexpected_exception(self, chatbot):
+        """Test that an unexpected exception is handled and does not change the 
+        chat history.
+        """
+        message = HumanMessage("Valid user input")
+        # In this case, we expect an exception to be raised because the api_key
+        # is a placeholder and not valid for actual API calls.
+        with pytest.raises(Exception):
+            chatbot.get_response(message)
+        assert len(chatbot.get_chat_history()) == 0
