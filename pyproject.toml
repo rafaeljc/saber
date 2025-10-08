@@ -18,7 +18,12 @@ saber = "saber.app:run"
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.0.0",
     "ruff>=0.12.9",
+    "safety>=3.0.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.0.0",
 ]
 
 [tool.ruff]
