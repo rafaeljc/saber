@@ -305,7 +305,7 @@ class Chatbot:
             self._validate_string(model_name, "Model name")
             supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
                 self._model_provider, 
-                {},
+                set(),
             )
             if model_name not in supported_models:
                 error_msg = f"Model '{model_name}' is not supported."
@@ -451,8 +451,6 @@ class Chatbot:
         """
         supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
             model_provider, 
-            None,
+            set(),
         )
-        if supported_models:
-            return supported_models.copy()
-        return set()
+        return supported_models.copy()
