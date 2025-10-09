@@ -1,3 +1,34 @@
+"""This module contains the test suite for the Chatbot class, ensuring robust
+validation of all configuration management and core functionality.
+
+Testing Patterns:
+    **Fixtures:**
+    - Consistent test setup with predefined configurations
+    - Reusable chatbot instances for different test scenarios
+    - Isolation between test cases
+    
+    **Validation Strategy:**
+    - Positive testing: Valid inputs produce expected results
+    - Negative testing: Invalid inputs raise appropriate exceptions
+    - Edge cases: Boundary conditions and special values
+    - State preservation: Changes don't affect unrelated attributes
+
+Usage:
+    Run all tests:
+        $ pytest tests/test_chatbot.py
+    
+    Run specific test class:
+        $ pytest tests/test_chatbot.py::TestModelProviderAttributeManagement
+    
+    Run with coverage:
+        $ pytest tests/test_chatbot.py --cov=saber.chatbot
+
+Note:
+    These tests ensure the chatbot behaves correctly under all conditions
+    and provides reliable error handling. They serve as both validation
+    and documentation of expected behavior.
+"""
+
 import pytest
 from langchain_core.messages import HumanMessage
 
@@ -5,26 +36,78 @@ from saber.chatbot import Chatbot
 
 
 class TestModelProviderAttributeManagement:
-    """Tests model_provider attribute management in the Chatbot class."""
+    """This test class validates the complete lifecycle of model provider
+    management, including selection, validation, error handling, and
+    state transitions.
+    
+    Test Coverage:
+        - **Type Validation**: Ensures only string or None types accepted
+        - **Provider Validation**: Verifies only supported providers allowed
+        - **State Management**: Confirms proper attribute updates and resets
+        - **Error Handling**: Validates appropriate exception types and messages
+        - **Dependency Management**: Tests provider-model relationship handling
+        
+    Critical Behaviors Tested:
+        - Invalid providers rejected with ValueError
+        - Invalid types rejected with TypeError
+        - Empty strings rejected appropriately
+        - Setting provider resets dependent attributes (model_name)
+        - State remains consistent after errors
+    """
 
     @pytest.fixture
     def chatbot(self):
-        """Create a Chatbot instance with a predefined model provider."""
+        """Provides a chatbot instance in a partially configured state suitable
+        for testing provider-related operations. The instance has a valid
+        provider set but no model name, allowing tests to verify provider
+        functionality and provider-model dependencies.
+        
+        Configuration:
+            - Provider: "google_genai" (valid, supported provider)
+            - Model: None (not set, ready for model selection tests)
+            - API Key: None (not set, prevents actual API calls)
+        
+        Returns:
+            Chatbot: Configured instance ready for provider testing
+        """
         cb = Chatbot()
         cb.set_model_provider("google_genai")
         return cb
     
     @pytest.fixture
     def chatbot_with_model(self):
-        """Create a Chatbot instance with a predefined model name."""
+        """Provides a chatbot instance in a more complete configuration state,
+        suitable for testing operations that require both provider and model
+        to be set. This fixture is used to test dependency relationships
+        and state transitions.
+        
+        Configuration:
+            - Provider: "google_genai" (valid, supported provider)
+            - Model: "gemini-2.5-flash" (valid model for the provider)
+            - API Key: None (not set, prevents actual API calls)
+        
+        Returns:
+            Chatbot: Fully configured instance ready for advanced testing
+        """
         cb = Chatbot()
         cb.set_model_provider("google_genai")
         cb.set_model_name("gemini-2.5-flash")
         return cb
 
     def test_set_invalid_type(self, chatbot):
-        """Test setting an invalid type raises TypeError and does not change 
-        the value.
+        """Validates that the chatbot properly validates input types and raises
+        appropriate exceptions for non-string, non-None values. This ensures
+        type safety and prevents configuration corruption from invalid inputs.
+        
+        Test Strategy:
+            - Arrange: Get current provider value for comparison
+            - Act: Attempt to set invalid type (integer)
+            - Assert: TypeError raised, original value preserved
+        
+        Error Handling Verification:
+            - Exception type: TypeError (not ValueError or generic Exception)
+            - State preservation: Original value remains unchanged
+            - Input validation: Non-string types properly rejected
         """
         prev_value = chatbot.get_model_provider()
         non_valid_type = 12345
@@ -39,8 +122,8 @@ class TestModelProviderAttributeManagement:
         assert chatbot.get_model_provider() == valid_string
 
     def test_set_invalid_string(self, chatbot):
-        """Test setting invalid string raises ValueError and does not 
-        change the value.
+        """Test setting invalid string raises ValueError and does not change the
+        value.
         """
         prev_value = chatbot.get_model_provider()
         unsupported_provider = "unsupported_provider"
@@ -62,7 +145,22 @@ class TestModelProviderAttributeManagement:
 
 
 class TestModelNameAttributeManagement:
-    """Tests model_name attribute management in the Chatbot class."""
+    """This test class validates model name selection within provider
+    constraints, ensuring proper validation of provider-model compatibility and
+    dependency management.
+    
+    Test Coverage:
+        - **Provider Dependency**: Model selection requires valid provider
+        - **Model Validation**: Only provider-compatible models accepted
+        - **Type Validation**: Ensures proper input type checking
+        - **State Management**: Confirms attribute updates and consistency
+        - **Error Scenarios**: Validates exception handling for invalid inputs
+
+    Critical Dependencies Tested:
+        - Model cannot be set without provider
+        - Invalid models rejected with ValueError
+        - Cross-provider model validation works correctly
+    """
 
     @pytest.fixture
     def chatbot(self):
@@ -311,7 +409,20 @@ class TestAPIKeyAttributeManagement:
 
 
 class TestGetResponseMethod:
-    """Tests get_response method in the Chatbot class."""
+    """This test class validates the get_response method that handles user
+    interactions and generates AI responses. It ensures proper message
+    handling, validation, and error management.
+
+    Test Coverage:
+        - **Message Type Validation**: Ensures only HumanMessage accepted
+        - **Error Handling**: Tests exception scenarios and error messages
+        - **State Consistency**: Verifies configuration remains intact
+    
+    Critical Requirements Tested:
+        - A valid API key must be provided
+        - Input must be valid HumanMessage instance
+        - Errors are handled without state corruption
+    """
 
     @pytest.fixture
     def chatbot(self):
