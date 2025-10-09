@@ -1,3 +1,55 @@
+"""This module provides the core Chatbot class that integrates with multiple
+Large Language Model (LLM) providers through LangChain and LangGraph frameworks.
+
+Key Features:
+    - **Multi-provider Support**: Easy switching between OpenAI and Google GenAI
+    - **Async Architecture**: Non-blocking operations using asyncio
+    - **Memory Management**: Persistent conversation history within sessions
+    - **Configuration Flexibility**: Adjustable temperature, system messages, and models
+
+Example Usage:
+    Basic chatbot setup and usage:
+    
+    ```python
+    from saber.chatbot import Chatbot
+    from langchain_core.messages import HumanMessage
+    
+    # Initialize chatbot
+    chatbot = Chatbot()
+    
+    # Configure provider and model
+    chatbot.set_model_provider("openai")
+    chatbot.set_model_name("gpt-4")
+    chatbot.set_api_key("openai", "your-api-key")
+    
+    # Optional: Configure behavior
+    chatbot.set_model_temperature(0.7)
+    chatbot.set_system_message("You are a helpful Python programming assistant.")
+    
+    # Get responses
+    response = chatbot.get_response(HumanMessage("Hello! Can you help me with Python?"))
+    print(response.content)
+    
+    # View conversation history
+    history = chatbot.get_chat_history()
+    ```
+    
+Requirements:
+    - Python 3.10+ for async/await support
+    - LangChain and LangGraph frameworks
+    - Valid API keys for chosen LLM providers
+    - Network connectivity for API calls
+
+Thread Safety:
+    The Chatbot class is designed for single-threaded use within async contexts.
+    For multi-threaded applications, create separate instances per thread.
+
+Performance Notes:
+    - Models and agents are lazily initialized on first use
+    - Event loops are reused across operations for efficiency
+    - Conversation history is stored in memory
+"""
+
 import asyncio
 import atexit
 import logging
@@ -11,7 +63,59 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 
 class Chatbot:
-    """Handle the data and provide functionalities of the chatbot."""
+    """The Chatbot class provides a high-level interface for interacting with
+    various Large Language Model providers through a unified API. It handles
+    provider-specific configurations, conversation state, and asynchronous 
+    operations transparently.
+    
+    Architecture:
+        - **Provider Layer**: Abstracts differences between OpenAI, Google, etc.
+        - **Model Management**: Lazy initialization and automatic configuration
+        - **Agent System**: Uses LangGraph for conversation flow and memory
+        - **Async Engine**: Non-blocking operations with managed event loops
+        - **State Management**: Persistent conversation history and settings
+    
+    Supported Providers:
+        - **OpenAI**: GPT-4, GPT-4 Turbo, GPT-4o, GPT-4o-mini, GPT-3.5-turbo
+        - **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.0 Flash
+    
+    Configuration Workflow:
+        1. Set model provider (openai/google_genai)
+        2. Choose specific model name
+        3. Provide API key for the provider
+        4. Optionally configure temperature and system message
+        5. Start conversations with get_response()
+    
+    State Persistence:
+        - Conversation history maintained within session
+        - Model and agent instances cached until configuration changes
+        - Automatic cleanup of resources on application exit
+    
+    Example:
+        >>> chatbot = Chatbot()
+        >>> chatbot.set_model_provider("openai")
+        >>> chatbot.set_model_name("gpt-4")
+        >>> chatbot.set_api_key("openai", "your-api-key")
+        >>> 
+        >>> from langchain_core.messages import HumanMessage
+        >>> response = chatbot.get_response(HumanMessage("Hello!"))
+        >>> print(response.content)
+        
+    Attributes:
+        _SUPPORTED_PROVIDERS (set): Available LLM provider names
+        _SUPPORTED_MODELS_BY_PROVIDER (dict): Valid models for each provider
+        _logger (Logger): Class-specific logger instance
+        _model_provider (str | None): Current model provider
+        _model_name (str | None): Current model name
+        _model_temperature (float): Current model temperature
+        _system_message (str | None): Current system message
+        _api_key (dict): API keys for each provider
+        _checkpointer (InMemorySaver): Conversation memory manager
+        _model (BaseChatModel | None): Current chat model instance
+        _agent (CompiledStateGraph | None): Current agent instance
+        _chat_history (list): Conversation history
+        _event_loop (AbstractEventLoop | None): Managed event loop instance
+    """
 
     _SUPPORTED_PROVIDERS = {
         "openai",
@@ -33,7 +137,50 @@ class Chatbot:
         },
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize a new Chatbot instance with default configuration.
+        
+        The chatbot requires additional configuration (provider, model, API key)
+        before it can generate responses.
+        
+        Initialization Process:
+            - Sets up logging
+            - Initializes all configuration attributes to defaults
+            - Creates conversation memory system (InMemorySaver)
+            - Prepares async event loop management
+            - Registers cleanup handlers for proper resource management
+        
+        Default Configuration:
+            - Model provider: None (must be set)
+            - Model name: None (must be set)
+            - Temperature: 0.0 (deterministic responses)
+            - System message: Generic Q&A assistant prompt
+            - API keys: Empty dictionary (must be set per provider)
+            - Chat history: Empty list
+        
+        State Management:
+            - Model and agent instances: None (lazy initialization)
+            - Event loop: None (created on first async operation)
+            - Checkpointer: InMemorySaver for conversation persistence
+        
+        Resource Management:
+            Registers an atexit handler to ensure proper cleanup of async
+            resources when the application terminates. This prevents resource
+            leaks and ensures graceful shutdown.
+        
+        Example:
+            >>> chatbot = Chatbot()
+            >>> # Chatbot is now ready for configuration
+            >>> chatbot.set_model_provider("openai")
+            >>> chatbot.set_model_name("gpt-4")
+            >>> chatbot.set_api_key("openai", "your-api-key")
+            >>> # Now ready for conversations
+        
+        Note:
+            No network calls are made during initialization. The chatbot
+            remains dormant until the first conversation request, when
+            models and agents are lazily initialized.
+        """
         self._logger = logging.getLogger(self.__class__.__name__)
         self._model_provider = None
         self._model_name = None
@@ -406,16 +553,70 @@ class Chatbot:
         return self._api_key.get(model_provider, None)
         
     def get_response(self, user_message: HumanMessage) -> AIMessage | None:
-        """Get a response from the chatbot.
+        """Generate a response to the user's message using the configured LLM.
+        
+        This is the main interface for chatbot interactions. The method handles
+        the complete conversation flow including model initialization, message
+        processing, response generation, and history management.
+        
+        Process Flow:
+            1. Validates the input message type
+            2. Initializes model and agent if not already done
+            3. Processes the message asynchronously
+            4. Updates conversation history
+            5. Returns the AI-generated response
         
         Args:
-            user_message (HumanMessage): The user's message.
+            user_message (HumanMessage): The user's input message. Must be a
+                LangChain HumanMessage object containing the text content.
+        
         Returns:
-            AIMessage | None: The agent's response message, or None if an
-                error occurred.
+            AIMessage | None: The AI assistant's response message containing:
+                - content: The response text
+                - metadata: Additional response information
+                Returns None only if a critical error occurs during processing.
+        
         Raises:
-            TypeError: If user_message is not a HumanMessage.
-            Exception: If there is an error getting the response from the agent.
+            TypeError: If user_message is not a HumanMessage instance.
+            ValueError: If the chatbot is not properly configured (missing
+                provider, model name, or API key).
+            Exception: If there are network issues, API errors, or other
+                failures during response generation.
+        
+        Configuration Requirements:
+            Before calling this method, ensure:
+            - Model provider is set (set_model_provider)
+            - Model name is set (set_model_name) 
+            - API key is set for the provider (set_api_key)
+        
+        Example:
+            >>> from langchain_core.messages import HumanMessage
+            >>> 
+            >>> # Configure chatbot
+            >>> chatbot = Chatbot()
+            >>> chatbot.set_model_provider("openai")
+            >>> chatbot.set_model_name("gpt-4")
+            >>> chatbot.set_api_key("openai", "your-api-key")
+            >>> 
+            >>> # Get response
+            >>> user_msg = HumanMessage("What is machine learning?")
+            >>> response = chatbot.get_response(user_msg)
+            >>> print(response.content)
+            "Machine learning is a subset of artificial intelligence..."
+            
+            >>> # Continue conversation
+            >>> follow_up = HumanMessage("Can you give me an example?")
+            >>> response2 = chatbot.get_response(follow_up)
+        
+        Performance Notes:
+            - First call may be slower due to model initialization
+            - Subsequent calls reuse the initialized model for better performance
+            - Conversation history grows with each exchange
+            - Network latency affects response time depending on the provider
+        
+        Thread Safety:
+            This method is not thread-safe. Use separate Chatbot instances
+            for concurrent conversations in multi-threaded applications.
         """
         if not isinstance(user_message, HumanMessage):
             error_msg = (f"user_message must be a HumanMessage, got "
