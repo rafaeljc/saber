@@ -1,5 +1,7 @@
 # S.A.B.E.R.
 
+[![codecov](https://codecov.io/github/rafaeljc/saber/graph/badge.svg?token=NN7LV689Q2)](https://codecov.io/github/rafaeljc/saber)
+
 ## Description
 S.A.B.E.R. (Smart Assistant for Better Engineering and Research) is an AI-powered assistant designed to help engineers and researchers solve problems and find information more efficiently. It uses Streamlit and LangChain to provide a conversational interface using large language models (LLMs), allowing users to interact naturally and access advanced AI features through a user-friendly web application.
 
@@ -20,12 +22,7 @@ cd saber
 ```
 ### Install the application using pip
 ```bash
-pip install -e .
-```
-### Assign your Google API key to the environment variable
-```bash
-read -s GOOGLE_API_KEY
-export GOOGLE_API_KEY
+pip install .
 ```
 ### Run the application
 ```bash
@@ -52,12 +49,12 @@ To get started:
    ```
 4. Lint your code with Ruff:
    ```bash
-   uv run ruff format
-   uv run check .
+   uv run ruff check --fix .
+   uv run ruff format .
    ```
 5. Run the tests:
    ```bash
-   uv run pytest
+   uv run pytest -n auto
    ```
 6. Install and run the application:
    ```bash

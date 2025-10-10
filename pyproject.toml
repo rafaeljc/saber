@@ -1,12 +1,13 @@
 [project]
 name = "saber"
-version = "0.1.0a1"
+version = "0.1.0"
 description = "Smart Assistant for Better Engineering and Research"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langchain>=0.3.27",
     "langchain-google-genai>=2.1.9",
+    "langchain-openai>=0.3.33",
     "langgraph>=0.6.5",
     "streamlit>=1.48.1",
 ]
@@ -17,7 +18,12 @@ saber = "saber.app:run"
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.0.0",
     "ruff>=0.12.9",
+    "safety>=3.0.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.0.0",
 ]
 
 [tool.ruff]

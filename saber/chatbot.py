@@ -1,143 +1,671 @@
-import os
-import getpass as gp
-import streamlit as st
+"""This module provides the core Chatbot class that integrates with multiple
+Large Language Model (LLM) providers through LangChain and LangGraph frameworks.
 
+Key Features:
+    - **Multi-provider Support**: Easy switching between OpenAI and Google GenAI
+    - **Async Architecture**: Non-blocking operations using asyncio
+    - **Memory Management**: Persistent conversation history within sessions
+    - **Configuration Flexibility**: Adjustable temperature, system messages,
+        and models
+
+Example Usage:
+    Basic chatbot setup and usage:
+
+    ```python
+    from saber.chatbot import Chatbot
+    from langchain_core.messages import HumanMessage
+
+    # Initialize chatbot
+    chatbot = Chatbot()
+
+    # Configure provider and model
+    chatbot.set_model_provider("openai")
+    chatbot.set_model_name("gpt-4")
+    chatbot.set_api_key("openai", "your-api-key")
+
+    # Optional: Configure behavior
+    chatbot.set_model_temperature(0.7)
+    chatbot.set_system_message(
+        "You are a helpful Python programming assistant."
+    )
+
+    # Get responses
+    response = chatbot.get_response(
+        HumanMessage("Hello! Can you help me with Python?")
+    )
+    print(response.content)
+
+    # View conversation history
+    history = chatbot.get_chat_history()
+    ```
+
+Requirements:
+    - Python 3.10+ for async/await support
+    - LangChain and LangGraph frameworks
+    - Valid API keys for chosen LLM providers
+    - Network connectivity for API calls
+
+Thread Safety:
+    The Chatbot class is designed for single-threaded use within async contexts.
+    For multi-threaded applications, create separate instances per thread.
+
+Performance Notes:
+    - Models and agents are lazily initialized on first use
+    - Event loops are reused across operations for efficiency
+    - Conversation history is stored in memory
+"""
+
+import asyncio
+import atexit
+import logging
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
-from langgraph.graph import (
-    StateGraph,
-    MessagesState,
-    START,
-)
-from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.messages import (
-    HumanMessage,
-    AIMessage,
-)
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import create_react_agent
+from typing import Any, Coroutine
+from langchain_core.messages import HumanMessage, AIMessage
 
 
 class Chatbot:
-    """Implements the chatbot user interface and functionalities
+    """The Chatbot class provides a high-level interface for interacting with
+    various Large Language Model providers through a unified API. It handles
+    provider-specific configurations, conversation state, and asynchronous
+    operations transparently.
+
+    Architecture:
+        - **Provider Layer**: Abstracts differences between OpenAI, Google, etc.
+        - **Model Management**: Lazy initialization and automatic configuration
+        - **Agent System**: Uses LangGraph for conversation flow and memory
+        - **Async Engine**: Non-blocking operations with managed event loops
+        - **State Management**: Persistent conversation history and settings
+
+    Supported Providers:
+        - **OpenAI**: GPT-4, GPT-4 Turbo, GPT-4o, GPT-4o-mini, GPT-3.5-turbo
+        - **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.0 Flash
+
+    Configuration Workflow:
+        1. Set model provider (openai/google_genai)
+        2. Choose specific model name
+        3. Provide API key for the provider
+        4. Optionally configure temperature and system message
+        5. Start conversations with get_response()
+
+    State Persistence:
+        - Conversation history maintained within session
+        - Model and agent instances cached until configuration changes
+        - Automatic cleanup of resources on application exit
+
+    Example:
+        >>> chatbot = Chatbot()
+        >>> chatbot.set_model_provider("openai")
+        >>> chatbot.set_model_name("gpt-4")
+        >>> chatbot.set_api_key("openai", "your-api-key")
+        >>> from langchain_core.messages import HumanMessage
+        >>> response = chatbot.get_response(HumanMessage("Hello!"))
+        >>> print(response.content)
 
     Attributes:
-        name: A string of the chatbot's name.
+        _SUPPORTED_PROVIDERS (set): Available LLM provider names
+        _SUPPORTED_MODELS_BY_PROVIDER (dict): Valid models for each provider
+        _logger (Logger): Class-specific logger instance
+        _model_provider (str | None): Current model provider
+        _model_name (str | None): Current model name
+        _model_temperature (float): Current model temperature
+        _system_message (str | None): Current system message
+        _api_key (dict): API keys for each provider
+        _checkpointer (InMemorySaver): Conversation memory manager
+        _model (BaseChatModel | None): Current chat model instance
+        _agent (CompiledStateGraph | None): Current agent instance
+        _chat_history (list): Conversation history
+        _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
-    def __init__(self, name: str = "S.A.B.E.R."):
-        """Initializes the chatbot with a name and does the initial setup.
+    _SUPPORTED_PROVIDERS = {
+        "openai",
+        "google_genai",
+    }
 
-        Args:
-            name: Defines the name of the chatbot. (Default: "S.A.B.E.R.")
+    _SUPPORTED_MODELS_BY_PROVIDER = {
+        "openai": {
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-3.5-turbo",
+        },
+        "google_genai": {
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+        },
+    }
+
+    def __init__(self) -> None:
+        """Initialize a new Chatbot instance with default configuration.
+
+        The chatbot requires additional configuration (provider, model, API key)
+        before it can generate responses.
+
+        Initialization Process:
+            - Sets up logging
+            - Initializes all configuration attributes to defaults
+            - Creates conversation memory system (InMemorySaver)
+            - Prepares async event loop management
+            - Registers cleanup handlers for proper resource management
+
+        Default Configuration:
+            - Model provider: None (must be set)
+            - Model name: None (must be set)
+            - Temperature: 0.0 (deterministic responses)
+            - System message: Generic Q&A assistant prompt
+            - API keys: Empty dictionary (must be set per provider)
+            - Chat history: Empty list
+
+        State Management:
+            - Model and agent instances: None (lazy initialization)
+            - Event loop: None (created on first async operation)
+            - Checkpointer: InMemorySaver for conversation persistence
+
+        Resource Management:
+            Registers an atexit handler to ensure proper cleanup of async
+            resources when the application terminates. This prevents resource
+            leaks and ensures graceful shutdown.
+
+        Example:
+            >>> chatbot = Chatbot()
+            >>> # Chatbot is now ready for configuration
+            >>> chatbot.set_model_provider("openai")
+            >>> chatbot.set_model_name("gpt-4")
+            >>> chatbot.set_api_key("openai", "your-api-key")
+            >>> # Now ready for conversations
+
+        Note:
+            No network calls are made during initialization. The chatbot
+            remains dormant until the first conversation request, when
+            models and agents are lazily initialized.
         """
-        self.name = name
-        # For security reasons, we do not store the API key in the code or in
-        # any file like a ".env" or a streamlit "secrets.toml". The user must
-        # enter the API key manually when prompted or set it as an environment
-        # variable.
-        #
-        # Proper way to set the API key as an environment variable:
-        #   $ read -s GOOGLE_API_KEY
-        #   $ export GOOGLE_API_KEY
-        if not os.environ.get("GOOGLE_API_KEY"):
-            os.environ["GOOGLE_API_KEY"] = gp.getpass(
-                "Please, enter your Google API key: "
-            )
-        self.init_model()
-        if not st.session_state.get("messages"):
-            st.session_state.messages = []
-
-    def init_model(self):
-        """Sets up the model for the chatbot."""
-        # Initialize the model if not already set
-        if not st.session_state.get("model"):
-            st.session_state.model = init_chat_model(
-                model="gemini-2.5-flash",
-                model_provider="google_genai",
-            )
-        # Initialize the workflow if not already set
-        if not st.session_state.get("workflow"):
-            workflow = StateGraph(state_schema=MessagesState)
-            workflow.add_edge(START, "model")
-            workflow.add_node("model", self.call_model)
-            st.session_state.workflow = workflow
-        # Compile the workflow if not already compiled
-        if not st.session_state.get("model_app"):
-            # Save the model state in memory
-            memory = MemorySaver()
-            model_app = workflow.compile(checkpointer=memory)
-            st.session_state.model_app = model_app
-        # Initialize the model_config if not already set
-        if not st.session_state.get("model_config"):
-            st.session_state.model_config = {
-                "configurable": {
-                    "thread_id": "abc123",
-                }
-            }
-
-    def call_model(self, state: MessagesState) -> dict:
-        """Calls the model with the current messages and returns the response.
-
-        Args:
-            state: The current state of the messages.
-
-        Returns:
-            A dictionary containing the response from the model.
-        """
-        response = st.session_state.model.invoke(state["messages"])
-        return {"messages": response}
-
-    def show_message_history(self):
-        """Displays the message history."""
-        for message in st.session_state.messages:
-            self.show_message(message)
-
-    def get_user_prompt(self) -> HumanMessage | None:
-        """Gets user's prompt from the chat interface.
-
-        Returns:
-            A HumanMessage containing the user's prompt.
-        """
-        if prompt := st.chat_input():
-            message = HumanMessage(prompt)
-            st.session_state.messages.append(message)
-            return message
-        return None
-
-    def show_message(self, message: HumanMessage | AIMessage):
-        """Displays a message in the chat interface.
-
-        Args:
-            message: The message to display.
-        """
-        if isinstance(message, HumanMessage):
-            role = "user"
-        elif isinstance(message, AIMessage):
-            role = "assistant"
-        with st.chat_message(role):
-            st.markdown(message.content)
-
-    def get_assistant_response(self) -> AIMessage | None:
-        """Gets assistant's response based on the message history.
-
-        Returns:
-            A AIMessage of the assistant's response.
-        """
-        messages = st.session_state.messages
-        response = st.session_state.model_app.invoke(
-            {"messages": messages}, st.session_state.model_config
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._model_provider = None
+        self._model_name = None
+        self._model_temperature = 0.0
+        self._system_message = (
+            "You are an assistant for question-answering "
+            "tasks. Use the following pieces of retrieved context to answer "
+            "the question. If you don't know the answer, just say that you "
+            "don't know. Use three sentences maximum and keep the answer "
+            "concise."
         )
-        if response and "messages" in response:
-            message = response["messages"][-1]
-            messages.append(message)
-            return message
-        return None
+        self._api_key = {}
+        self._checkpointer = InMemorySaver()
+        self._model = None
+        self._agent = None
+        self._chat_history = []
+        self._event_loop = None
+        atexit.register(self._cleanup_event_loop)
 
-    def run(self):
-        """Run the chatbot."""
-        st.title(f"{self.name}")
-        self.show_message_history()
-        prompt = self.get_user_prompt()
-        if prompt:
-            self.show_message(prompt)
-            response = self.get_assistant_response()
-            if response:
-                self.show_message(response)
+    def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
+        """Setup the event loop for asynchronous operations.
+
+        Returns:
+            asyncio.AbstractEventLoop: The event loop.
+        Raises:
+            Exception: If unable to create or get an event loop.
+        """
+        try:
+            event_loop = asyncio.get_event_loop()
+            if event_loop.is_closed():
+                event_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(event_loop)
+        except RuntimeError:
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
+        except Exception as e:
+            error_msg = f"Error setting up event loop: {e}"
+            self._logger.error(error_msg)
+            raise e
+        return event_loop
+
+    def _cleanup_event_loop(self) -> None:
+        """Cleanup the event loop and resources.
+
+        Ensures that any pending tasks are cancelled and the event loop is
+        properly closed when the application exits.
+
+        Using atexit to register this cleanup function is more reliable than
+        calling it on __del__ method, as __del__ may not be called in some
+        situations (e.g., if there are circular references).
+        """
+        if self._event_loop and not self._event_loop.is_closed():
+            try:
+                pending = asyncio.all_tasks(self._event_loop)
+                for task in pending:
+                    task.cancel()
+            except RuntimeError:
+                # No tasks to cancel
+                pass
+            self._event_loop.close()
+
+    def _run_async(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
+        """Run asynchronous coroutine using managed event loop.
+
+        Args:
+            coroutine (Coroutine): The coroutine to run.
+        Returns:
+            Any: The result of the coroutine.
+        Raises:
+            TypeError: If the provided argument is not a coroutine.
+            Exception: If the coroutine execution fails.
+            asyncio.CancelledError: If the coroutine is cancelled.
+        """
+        if not isinstance(coroutine, Coroutine):
+            error_msg = (
+                f"Invalid coroutine type. Got {type(coroutine).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        if self._event_loop is None or self._event_loop.is_closed():
+            self._event_loop = self._get_or_create_event_loop()
+        if self._event_loop.is_running():
+            task = asyncio.create_task(coroutine)
+            return task
+        else:
+            try:
+                return self._event_loop.run_until_complete(coroutine)
+            except asyncio.CancelledError as e:
+                warning_msg = f"Coroutine was cancelled: {e}"
+                self._logger.warning(warning_msg)
+                raise e
+            except Exception as e:
+                error_msg = f"Unexpected error in async execution: {e}"
+                self._logger.error(error_msg)
+                raise e
+
+    def _validate_string(self, value: str, var_name: str) -> None:
+        """Validate that a variable is a non-empty string.
+
+        Args:
+            value (str): The value to validate.
+            var_name (str): The name of the variable (for error messages).
+        Raises:
+            TypeError: If the value is not a string.
+            ValueError: If the string is empty.
+        """
+        if not isinstance(value, str):
+            error_msg = (
+                f"{var_name} must be a string, got {type(value).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        if value == "":
+            error_msg = f"{var_name} must be a non-empty string."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+
+    def _validate_model_provider(self, model_provider: str) -> None:
+        """Validate the model provider.
+
+        Args:
+            model_provider (str): The model provider.
+        Raises:
+            TypeError: If model_provider is not a string.
+            ValueError: If model_provider is not supported or empty.
+        """
+        self._validate_string(model_provider, "Model provider")
+        if model_provider not in self._SUPPORTED_PROVIDERS:
+            error_msg = f"Model provider '{model_provider}' is not supported."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+
+    def _reset_model_and_agent(self) -> None:
+        """Reset the model and agent to their initial state.
+
+        Must be called when any parameter affecting them is changed. This
+        ensures that they will be re-initialized with the new parameters only
+        when next used.
+        """
+        self._model = None
+        self._agent = None
+
+    def _init_model(self) -> BaseChatModel:
+        """Initialize the chat model.
+
+        Returns:
+            BaseChatModel: The initialized chat model.
+        Raises:
+            ValueError: If model provider, model name, or API key is not set.
+            Exception: If the model initialization fails.
+        """
+        if self._model_provider is None:
+            error_msg = "Model provider is not set."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if self._model_name is None:
+            error_msg = "Model name is not set."
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if self._api_key.get(self._model_provider, None) is None:
+            error_msg = (
+                f"API key for model provider '{self._model_provider}' "
+                f"is not set."
+            )
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        try:
+            return init_chat_model(
+                f"{self._model_provider}:{self._model_name}",
+                temperature=self._model_temperature,
+                api_key=self._api_key[self._model_provider],
+            )
+        except Exception as e:
+            error_msg = f"Failed to initialize chat model: {e}"
+            self._logger.error(error_msg)
+            raise e
+
+    def _create_agent(self) -> CompiledStateGraph:
+        """Create the agent.
+
+        Returns:
+            CompiledStateGraph: The created agent.
+        Raises:
+            ValueError: If model provider, model name, or API key is not set.
+            Exception: If the model initialization or agent creation fails.
+        """
+        if self._model is None:
+            self._model = self._init_model()
+        try:
+            return create_react_agent(
+                model=self._model,
+                tools=[],
+                checkpointer=self._checkpointer,
+                prompt=self._system_message,
+            )
+        except Exception as e:
+            error_msg = f"Failed to create agent: {e}"
+            self._logger.error(error_msg)
+            raise e
+
+    async def _async_get_response(
+        self, user_message: HumanMessage
+    ) -> AIMessage | None:
+        """Asynchronously get a response from the chatbot.
+
+        Args:
+            user_message (HumanMessage): The user's message.
+        Returns:
+            AIMessage | None: The agent's response message, or None if an
+                error occurred.
+        Raises:
+            Exception: If there is an error getting the response from the agent.
+        """
+        if self._agent is None:
+            self._agent = self._create_agent()
+        try:
+            response = await self._agent.ainvoke(
+                {"messages": [user_message]},
+                {"configurable": {"thread_id": "1"}},
+            )
+            self._chat_history.append(user_message)
+            agent_message = response["messages"][-1]
+            self._chat_history.append(agent_message)
+            return agent_message
+        except Exception as e:
+            self._logger.error(f"Error getting response: {e}")
+            raise e
+
+    def set_model_provider(self, model_provider: str | None) -> None:
+        """Set the model provider.
+
+        Args:
+            model_provider (str | None): The model provider to set. If None,
+                the model provider is unset.
+        Raises:
+            TypeError: If model_provider is not a string or None.
+            ValueError: If model_provider is not supported or empty.
+        """
+        if model_provider is not None:
+            self._validate_model_provider(model_provider)
+        if model_provider != self._model_provider:
+            self._model_provider = model_provider
+            # Reset model name when provider changes to avoid invalid
+            # combinations of provider and model name.
+            self._model_name = None
+            self._reset_model_and_agent()
+
+    def get_model_provider(self) -> str | None:
+        """Get the model provider.
+
+        Returns:
+            str | None: The model provider, or None if not set.
+        """
+        return self._model_provider
+
+    def set_model_name(self, model_name: str | None) -> None:
+        """Set the model name.
+
+        Args:
+            model_name (str | None): The model name to set. If None, the model
+                name is unset.
+        Raises:
+            TypeError: If model_name is not a string or None.
+            ValueError: If model_name is not supported, empty, or if the model
+                provider is not set (in case the model name is not None).
+        """
+        if model_name is not None:
+            if self._model_provider is None:
+                error_msg = (
+                    "Model provider must be set before setting the model name."
+                )
+                self._logger.error(error_msg)
+                raise ValueError(error_msg)
+            self._validate_string(model_name, "Model name")
+            supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
+                self._model_provider,
+                set(),
+            )
+            if model_name not in supported_models:
+                error_msg = f"Model '{model_name}' is not supported."
+                self._logger.error(error_msg)
+                raise ValueError(error_msg)
+        if model_name != self._model_name:
+            self._model_name = model_name
+            self._reset_model_and_agent()
+
+    def get_model_name(self) -> str | None:
+        """Get the model name.
+
+        Returns:
+            str | None: The model name, or None if not set.
+        """
+        return self._model_name
+
+    def set_model_temperature(self, model_temperature: float) -> None:
+        """Set the model temperature.
+
+        Args:
+            model_temperature (float): The model temperature to set. Must be
+                in the range [0.0, 1.0].
+        Raises:
+            TypeError: If model_temperature is not a number.
+            ValueError: If model_temperature is out of range.
+        """
+        if not isinstance(model_temperature, (int, float)):
+            error_msg = (
+                f"Model temperature must be a number, got "
+                f"{type(model_temperature).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        model_temperature = float(model_temperature)
+        if not (0.0 <= model_temperature <= 1.0):
+            error_msg = (
+                f"Model temperature {model_temperature} is out of "
+                f"range [0.0, 1.0]"
+            )
+            self._logger.error(error_msg)
+            raise ValueError(error_msg)
+        if model_temperature != self._model_temperature:
+            self._model_temperature = model_temperature
+            self._reset_model_and_agent()
+
+    def get_model_temperature(self) -> float:
+        """Get the model temperature.
+
+        Returns:
+            float: The model temperature.
+        """
+        return self._model_temperature
+
+    def set_system_message(self, system_message: str) -> None:
+        """Set the system message.
+
+        Args:
+            system_message (str): The system message to set.
+        Raises:
+            TypeError: If system_message is not a string.
+            ValueError: If system_message is empty.
+        """
+        self._validate_string(system_message, "System message")
+        if system_message != self._system_message:
+            self._system_message = system_message
+            self._reset_model_and_agent()
+
+    def get_system_message(self) -> str:
+        """Get the system message.
+
+        Returns:
+            str: The system message.
+        """
+        return self._system_message
+
+    def set_api_key(self, model_provider: str, api_key: str) -> None:
+        """Set the API key for a model provider.
+
+        Args:
+            model_provider (str): The model provider.
+            api_key (str): The API key to set.
+        Raises:
+            TypeError: If model_provider or api_key is not a string.
+            ValueError: If model_provider is not supported or empty, or if
+                api_key is empty.
+        """
+        self._validate_model_provider(model_provider)
+        self._validate_string(api_key, "API key")
+        if api_key != self._api_key.get(model_provider, None):
+            self._api_key[model_provider] = api_key
+            self._reset_model_and_agent()
+
+    def get_api_key(self, model_provider: str) -> str | None:
+        """Get the API key for a model provider.
+
+        Args:
+            model_provider (str): The model provider.
+        Returns:
+            str | None: The API key for the model provider, or None if not set.
+        """
+        return self._api_key.get(model_provider, None)
+
+    def get_response(self, user_message: HumanMessage) -> AIMessage | None:
+        """Generate a response to the user's message using the configured LLM.
+
+        This is the main interface for chatbot interactions. The method handles
+        the complete conversation flow including model initialization, message
+        processing, response generation, and history management.
+
+        Process Flow:
+            1. Validates the input message type
+            2. Initializes model and agent if not already done
+            3. Processes the message asynchronously
+            4. Updates conversation history
+            5. Returns the AI-generated response
+
+        Args:
+            user_message (HumanMessage): The user's input message. Must be a
+                LangChain HumanMessage object containing the text content.
+
+        Returns:
+            AIMessage | None: The AI assistant's response message containing:
+                - content: The response text
+                - metadata: Additional response information
+                Returns None only if a critical error occurs during processing.
+
+        Raises:
+            TypeError: If user_message is not a HumanMessage instance.
+            ValueError: If the chatbot is not properly configured (missing
+                provider, model name, or API key).
+            Exception: If there are network issues, API errors, or other
+                failures during response generation.
+
+        Configuration Requirements:
+            Before calling this method, ensure:
+            - Model provider is set (set_model_provider)
+            - Model name is set (set_model_name)
+            - API key is set for the provider (set_api_key)
+
+        Example:
+            >>> from langchain_core.messages import HumanMessage
+            >>> # Configure chatbot
+            >>> chatbot = Chatbot()
+            >>> chatbot.set_model_provider("openai")
+            >>> chatbot.set_model_name("gpt-4")
+            >>> chatbot.set_api_key("openai", "your-api-key")
+            >>> # Get response
+            >>> user_msg = HumanMessage("What is machine learning?")
+            >>> response = chatbot.get_response(user_msg)
+            >>> print(response.content)
+            "Machine learning is a subset of artificial intelligence..."
+
+            >>> # Continue conversation
+            >>> follow_up = HumanMessage("Can you give me an example?")
+            >>> response2 = chatbot.get_response(follow_up)
+
+        Performance Notes:
+            - First call may be slower due to model initialization
+            - Subsequent calls reuse the initialized model for better
+                performance
+            - Conversation history grows with each exchange
+            - Network latency affects response time depending on the provider
+
+        Thread Safety:
+            This method is not thread-safe. Use separate Chatbot instances
+            for concurrent conversations in multi-threaded applications.
+        """
+        if not isinstance(user_message, HumanMessage):
+            error_msg = (
+                f"user_message must be a HumanMessage, got "
+                f"{type(user_message).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        return self._run_async(self._async_get_response(user_message))
+
+    def get_chat_history(self) -> list[HumanMessage | AIMessage]:
+        """Return the chat history.
+
+        Returns:
+            list[HumanMessage | AIMessage]: The chat history.
+        """
+        return self._chat_history.copy()
+
+    def get_supported_providers(self) -> set[str]:
+        """Get the set of supported model providers.
+
+        Returns:
+            set[str]: The supported model providers.
+        """
+        return self._SUPPORTED_PROVIDERS.copy()
+
+    def get_supported_models_by_provider(self, model_provider: str) -> set[str]:
+        """Get the set of supported models for a given provider.
+
+        Args:
+            model_provider (str): The model provider.
+        Returns:
+            set[str]: The supported models for the provider, or an empty set if
+                not found.
+        """
+        supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
+            model_provider,
+            set(),
+        )
+        return supported_models.copy()
