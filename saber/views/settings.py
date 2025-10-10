@@ -49,7 +49,7 @@ chatbot = st.session_state.get("chatbot", None)
 def get_provider_list() -> list[str]:
     """Retrieves and caches the available LLM providers that the chatbot
     supports.
-    
+
     Returns:
         list[str]: a list of supported provider names.
 
@@ -64,14 +64,14 @@ def get_provider_list() -> list[str]:
 @st.cache_resource
 def get_model_list_by_provider(model_provider: str) -> list[str]:
     """Retrieves and caches the available model names for a given provider.
-    
+
     Args:
         model_provider (str): The provider name. Must be one of the supported
             providers from get_provider_list().
-    
+
     Returns:
         list[str]: a list of supported model names for the provider.
-    
+
     Note:
         Uses Streamlit's @st.cache_resource decorator to cache the result
         across the entire application session. The cache is cleared when
@@ -85,12 +85,12 @@ def get_index(item_list: list[str], item: str) -> int | None:
     """Utility function that helps set the initial selected value in Streamlit
     select widgets by finding the index of the current value in the options
     list.
-    
+
     Args:
         item_list (list[str]): The list of options/items to search through.
         item (str): The item to locate within the list. This is usually
             the current value that should be pre-selected in the widget.
-    
+
     Returns:
         int | None: The zero-based index of the item if found, or None if
             the item is not in the list. Streamlit uses None to indicate
@@ -109,17 +109,17 @@ def get_index(item_list: list[str], item: str) -> int | None:
 @st.cache_resource
 def get_set_functions_dict() -> dict[str, Callable]:
     """Create a mapping of chatbot attributes to their setter functions.
-    
+
     This function provides a centralized mapping between configuration
     attribute names and their corresponding chatbot setter methods. It
     enables the callback system to dynamically invoke the appropriate
     setter based on which UI widget was changed.
-    
+
     Returns:
         dict[str, Callable]: A dictionary mapping attribute names to their
             corresponding chatbot setter functions:
             - "model_provider": chatbot.set_model_provider
-            - "model_name": chatbot.set_model_name  
+            - "model_name": chatbot.set_model_name
             - "api_key": chatbot.set_api_key
             - "model_temperature": chatbot.set_model_temperature
             - "system_message": chatbot.set_system_message
@@ -140,22 +140,22 @@ def get_set_functions_dict() -> dict[str, Callable]:
 
 def set_value(chatbot_attr: str) -> None:
     """Callback function to update chatbot configuration in real-time.
-    
+
     This is the central callback function that handles all configuration
     updates from the settings UI. It retrieves values from Streamlit's
     session state and applies them to the chatbot using the appropriate
     setter functions.
-    
+
     Args:
         chatbot_attr (str): The name of the chatbot attribute to update.
             Must be one of: "model_provider", "model_name", "api_key",
             "model_temperature", "system_message".
-    
+
     Special Case:
         **API Key Handling:**
         - Requires the current provider to be set first
         - Constructs session state key as "api_key_{provider}"
-    
+
     Note:
         This function expects Streamlit session state to contain the
         updated values when called. It's designed to work with Streamlit's
@@ -170,12 +170,9 @@ def set_value(chatbot_attr: str) -> None:
         key = f"api_key_{current_provider}"
         api_key_value = st.session_state.get(key, None)
         if api_key_value is None:
-            st.error(f"No API key value found in session state")
+            st.error("No API key value found in session state")
             return
-        args = {
-            "model_provider": current_provider,
-            "api_key": api_key_value
-        }
+        args = {"model_provider": current_provider, "api_key": api_key_value}
     else:
         value = st.session_state.get(chatbot_attr, None)
         if value is None:
@@ -195,18 +192,18 @@ def set_value(chatbot_attr: str) -> None:
 def display_model_settings() -> None:
     """Creates a comprehensive model configuration interface with three columns:
     provider selection, model selection, and API key input.
-    
+
     Layout:
         **Column 1 - Provider Selection:**
         - Dropdown with all supported providers
         - Pre-selected with current provider
         - Triggers model list update on change
-        
+
         **Column 2 - Model Selection:**
         - Dynamic dropdown based on selected provider
         - Shows provider-specific models only
         - Pre-selected with current model
-        
+
         **Column 3 - API Key Input:**
         - Secure password field for API key
         - Disabled until provider is selected
@@ -256,11 +253,11 @@ def display_model_settings() -> None:
 def display_parameters_settings() -> None:
     """Creates an interface for adjusting advanced model parameters that
     control the behavior and output characteristics of the AI responses.
-    
+
     Layout:
         **Model Temperature (Slider):**
         - Range: 0.0 to 1.0 with 0.05 precision
-        
+
         **System Message (Text Area):**
         - Multi-line text input for AI behavior instructions
         - Defines the AI's role, personality, and response style

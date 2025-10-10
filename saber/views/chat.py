@@ -25,24 +25,22 @@ chatbot = st.session_state.get("chatbot", None)
 
 def display_message(message: HumanMessage | AIMessage) -> None:
     """Display a chat message with appropriate role-based styling.
-    
+
     Renders a message in the Streamlit chat interface using role-specific
     styling (user vs assistant). The message content is displayed using
     Markdown formatting for rich text support.
-    
+
     Args:
         message (HumanMessage | AIMessage): The message to display. Must be
             either a LangChain HumanMessage (from user) or AIMessage (from AI).
 
     Example:
         >>> from langchain_core.messages import HumanMessage, AIMessage
-        >>> 
         >>> user_msg = HumanMessage("Hello, how are you?")
         >>> display_message(user_msg)  # Shows with user styling
-        >>> 
         >>> ai_msg = AIMessage("I'm doing well, thank you!")
-        >>> display_message(ai_msg)    # Shows with assistant styling
-    
+        >>> display_message(ai_msg)  # Shows with assistant styling
+
     Error Handling:
         If an invalid message type is provided, displays an error message
         in the UI instead of crashing the application.
@@ -57,16 +55,16 @@ def display_message(message: HumanMessage | AIMessage) -> None:
         with st.chat_message(role):
             st.markdown(message.content)
     else:
-        st.error(f"Invalid message type.")
+        st.error("Invalid message type.")
 
 
 def display_chat_history() -> None:
     """Display the complete chat conversation history.
-    
+
     Retrieves and renders all previous messages from the current chatbot
     session, maintaining the chronological order of the conversation.
     Each message is displayed with appropriate role-based styling.
-        
+
     Performance Notes:
         - History length grows with conversation duration
         - Large histories may impact rendering performance
@@ -78,18 +76,18 @@ def display_chat_history() -> None:
 
 def chat_page() -> None:
     """Render the main chat interface page.
-    
+
     Creates and manages the complete chat user interface, including the
     conversation display, user input handling, and response processing.
     This is the primary function that orchestrates the entire chat experience.
-    
+
     Functionality:
         - Displays existing chat history on page load
         - Handles new user input via chat input widget
         - Processes messages through the chatbot
         - Shows real-time responses with loading indicators
         - Manages error states
-    
+
     User Interaction Flow:
         1. User sees existing conversation history
         2. User types message in input field
@@ -98,15 +96,15 @@ def chat_page() -> None:
         5. AI response is generated and displayed
         6. Input field clears for next message
     """
-    st.title("Chat")    
+    st.title("Chat")
     # Display current model information
     st.sidebar.markdown(f"{chatbot.get_model_name()}")
-    display_chat_history()    
+    display_chat_history()
     # User input handling: Process new messages
     if user_prompt := st.chat_input("Type your message here..."):
         # Create and display user message immediately
         user_message = HumanMessage(user_prompt)
-        display_message(user_message)        
+        display_message(user_message)
         # Generate AI response with loading indicator
         with st.spinner("Thinking..."):
             try:

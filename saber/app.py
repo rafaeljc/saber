@@ -8,7 +8,7 @@ Application features:
 Usage:
     Command line (after pip install):
         $ saber
-    
+
     Direct execution:
         $ python -m saber.app
         $ streamlit run saber/app.py
@@ -33,8 +33,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler("app.log"),  # Persistent file logging
-        logging.StreamHandler(),         # Console output
-    ]
+        logging.StreamHandler(),  # Console output
+    ],
 )
 
 
@@ -49,7 +49,7 @@ def run() -> None:
         After pip installation:
             $ pip install .
             $ saber
-        
+
         Direct module execution:
             $ python -m saber.app
     """
@@ -61,24 +61,24 @@ def run() -> None:
 
 def main() -> None:
     """Initialize and run the main Streamlit application.
-    
+
     Sets up the application environment by:
     - Initializing the chatbot instance in Streamlit session state
     - Configuring navigation routing system
     - Starting the web application interface
-    
+
     Session State Management:
         - Creates a single Chatbot instance per user session
         - Persists chatbot state across page interactions
         - Prevents re-initialization on subsequent function calls
-    
+
     Navigation:
         Uses the routes configuration to enable multi-page navigation
         within the Streamlit application interface.
     """
     # Initialize chatbot instance in session state if not already present
     if "chatbot" not in st.session_state:
-        st.session_state.chatbot = Chatbot()    
+        st.session_state.chatbot = Chatbot()
     # Run the navigation system with configured routes
     st.navigation(routes).run()
 

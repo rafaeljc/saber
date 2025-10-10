@@ -9,9 +9,10 @@ Route Structure:
 
 Usage:
     The routes tuple is imported and used by the main application:
-    
+
     ```python
     from saber.routes import routes
+
     st.navigation(routes).run()
     ```
 
@@ -21,7 +22,6 @@ Note:
 """
 
 import streamlit as st
-from typing import Tuple
 
 
 # Application Routes Configuration
@@ -31,7 +31,7 @@ routes = (
         "views/chat.py",
         title="Chat",
         icon="💬",
-    ),    
+    ),
     # Configuration page - chatbot settings and parameters
     st.Page(
         "views/settings.py",

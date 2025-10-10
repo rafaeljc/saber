@@ -5,35 +5,40 @@ Key Features:
     - **Multi-provider Support**: Easy switching between OpenAI and Google GenAI
     - **Async Architecture**: Non-blocking operations using asyncio
     - **Memory Management**: Persistent conversation history within sessions
-    - **Configuration Flexibility**: Adjustable temperature, system messages, and models
+    - **Configuration Flexibility**: Adjustable temperature, system messages,
+        and models
 
 Example Usage:
     Basic chatbot setup and usage:
-    
+
     ```python
     from saber.chatbot import Chatbot
     from langchain_core.messages import HumanMessage
-    
+
     # Initialize chatbot
     chatbot = Chatbot()
-    
+
     # Configure provider and model
     chatbot.set_model_provider("openai")
     chatbot.set_model_name("gpt-4")
     chatbot.set_api_key("openai", "your-api-key")
-    
+
     # Optional: Configure behavior
     chatbot.set_model_temperature(0.7)
-    chatbot.set_system_message("You are a helpful Python programming assistant.")
-    
+    chatbot.set_system_message(
+        "You are a helpful Python programming assistant."
+    )
+
     # Get responses
-    response = chatbot.get_response(HumanMessage("Hello! Can you help me with Python?"))
+    response = chatbot.get_response(
+        HumanMessage("Hello! Can you help me with Python?")
+    )
     print(response.content)
-    
+
     # View conversation history
     history = chatbot.get_chat_history()
     ```
-    
+
 Requirements:
     - Python 3.10+ for async/await support
     - LangChain and LangGraph frameworks
@@ -65,42 +70,41 @@ from langchain_core.messages import HumanMessage, AIMessage
 class Chatbot:
     """The Chatbot class provides a high-level interface for interacting with
     various Large Language Model providers through a unified API. It handles
-    provider-specific configurations, conversation state, and asynchronous 
+    provider-specific configurations, conversation state, and asynchronous
     operations transparently.
-    
+
     Architecture:
         - **Provider Layer**: Abstracts differences between OpenAI, Google, etc.
         - **Model Management**: Lazy initialization and automatic configuration
         - **Agent System**: Uses LangGraph for conversation flow and memory
         - **Async Engine**: Non-blocking operations with managed event loops
         - **State Management**: Persistent conversation history and settings
-    
+
     Supported Providers:
         - **OpenAI**: GPT-4, GPT-4 Turbo, GPT-4o, GPT-4o-mini, GPT-3.5-turbo
         - **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.0 Flash
-    
+
     Configuration Workflow:
         1. Set model provider (openai/google_genai)
         2. Choose specific model name
         3. Provide API key for the provider
         4. Optionally configure temperature and system message
         5. Start conversations with get_response()
-    
+
     State Persistence:
         - Conversation history maintained within session
         - Model and agent instances cached until configuration changes
         - Automatic cleanup of resources on application exit
-    
+
     Example:
         >>> chatbot = Chatbot()
         >>> chatbot.set_model_provider("openai")
         >>> chatbot.set_model_name("gpt-4")
         >>> chatbot.set_api_key("openai", "your-api-key")
-        >>> 
         >>> from langchain_core.messages import HumanMessage
         >>> response = chatbot.get_response(HumanMessage("Hello!"))
         >>> print(response.content)
-        
+
     Attributes:
         _SUPPORTED_PROVIDERS (set): Available LLM provider names
         _SUPPORTED_MODELS_BY_PROVIDER (dict): Valid models for each provider
@@ -139,17 +143,17 @@ class Chatbot:
 
     def __init__(self) -> None:
         """Initialize a new Chatbot instance with default configuration.
-        
+
         The chatbot requires additional configuration (provider, model, API key)
         before it can generate responses.
-        
+
         Initialization Process:
             - Sets up logging
             - Initializes all configuration attributes to defaults
             - Creates conversation memory system (InMemorySaver)
             - Prepares async event loop management
             - Registers cleanup handlers for proper resource management
-        
+
         Default Configuration:
             - Model provider: None (must be set)
             - Model name: None (must be set)
@@ -157,17 +161,17 @@ class Chatbot:
             - System message: Generic Q&A assistant prompt
             - API keys: Empty dictionary (must be set per provider)
             - Chat history: Empty list
-        
+
         State Management:
             - Model and agent instances: None (lazy initialization)
             - Event loop: None (created on first async operation)
             - Checkpointer: InMemorySaver for conversation persistence
-        
+
         Resource Management:
             Registers an atexit handler to ensure proper cleanup of async
             resources when the application terminates. This prevents resource
             leaks and ensures graceful shutdown.
-        
+
         Example:
             >>> chatbot = Chatbot()
             >>> # Chatbot is now ready for configuration
@@ -175,7 +179,7 @@ class Chatbot:
             >>> chatbot.set_model_name("gpt-4")
             >>> chatbot.set_api_key("openai", "your-api-key")
             >>> # Now ready for conversations
-        
+
         Note:
             No network calls are made during initialization. The chatbot
             remains dormant until the first conversation request, when
@@ -185,11 +189,13 @@ class Chatbot:
         self._model_provider = None
         self._model_name = None
         self._model_temperature = 0.0
-        self._system_message = (f"You are an assistant for question-answering "
-            f"tasks. Use the following pieces of retrieved context to answer "
-            f"the question. If you don't know the answer, just say that you "
-            f"don't know. Use three sentences maximum and keep the answer "
-            f"concise.")
+        self._system_message = (
+            "You are an assistant for question-answering "
+            "tasks. Use the following pieces of retrieved context to answer "
+            "the question. If you don't know the answer, just say that you "
+            "don't know. Use three sentences maximum and keep the answer "
+            "concise."
+        )
         self._api_key = {}
         self._checkpointer = InMemorySaver()
         self._model = None
@@ -200,7 +206,7 @@ class Chatbot:
 
     def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
         """Setup the event loop for asynchronous operations.
-        
+
         Returns:
             asyncio.AbstractEventLoop: The event loop.
         Raises:
@@ -219,10 +225,10 @@ class Chatbot:
             self._logger.error(error_msg)
             raise e
         return event_loop
-    
+
     def _cleanup_event_loop(self) -> None:
         """Cleanup the event loop and resources.
-        
+
         Ensures that any pending tasks are cancelled and the event loop is
         properly closed when the application exits.
 
@@ -242,7 +248,7 @@ class Chatbot:
 
     def _run_async(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
         """Run asynchronous coroutine using managed event loop.
-        
+
         Args:
             coroutine (Coroutine): The coroutine to run.
         Returns:
@@ -254,7 +260,8 @@ class Chatbot:
         """
         if not isinstance(coroutine, Coroutine):
             error_msg = (
-                f"Invalid coroutine type. Got {type(coroutine).__name__}")
+                f"Invalid coroutine type. Got {type(coroutine).__name__}"
+            )
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         if self._event_loop is None or self._event_loop.is_closed():
@@ -268,7 +275,7 @@ class Chatbot:
             except asyncio.CancelledError as e:
                 warning_msg = f"Coroutine was cancelled: {e}"
                 self._logger.warning(warning_msg)
-                raise e                
+                raise e
             except Exception as e:
                 error_msg = f"Unexpected error in async execution: {e}"
                 self._logger.error(error_msg)
@@ -276,7 +283,7 @@ class Chatbot:
 
     def _validate_string(self, value: str, var_name: str) -> None:
         """Validate that a variable is a non-empty string.
-        
+
         Args:
             value (str): The value to validate.
             var_name (str): The name of the variable (for error messages).
@@ -285,18 +292,19 @@ class Chatbot:
             ValueError: If the string is empty.
         """
         if not isinstance(value, str):
-            error_msg = (f"{var_name} must be a string, got "
-                f"{type(value).__name__}")
+            error_msg = (
+                f"{var_name} must be a string, got {type(value).__name__}"
+            )
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         if value == "":
             error_msg = f"{var_name} must be a non-empty string."
             self._logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
     def _validate_model_provider(self, model_provider: str) -> None:
         """Validate the model provider.
-        
+
         Args:
             model_provider (str): The model provider.
         Raises:
@@ -305,14 +313,13 @@ class Chatbot:
         """
         self._validate_string(model_provider, "Model provider")
         if model_provider not in self._SUPPORTED_PROVIDERS:
-            error_msg = (f"Model provider '{model_provider}' is not "
-                f"supported.")
+            error_msg = f"Model provider '{model_provider}' is not supported."
             self._logger.error(error_msg)
             raise ValueError(error_msg)
 
     def _reset_model_and_agent(self) -> None:
         """Reset the model and agent to their initial state.
-        
+
         Must be called when any parameter affecting them is changed. This
         ensures that they will be re-initialized with the new parameters only
         when next used.
@@ -322,7 +329,7 @@ class Chatbot:
 
     def _init_model(self) -> BaseChatModel:
         """Initialize the chat model.
-        
+
         Returns:
             BaseChatModel: The initialized chat model.
         Raises:
@@ -338,8 +345,10 @@ class Chatbot:
             self._logger.error(error_msg)
             raise ValueError(error_msg)
         if self._api_key.get(self._model_provider, None) is None:
-            error_msg = (f"API key for model provider '{self._model_provider}' "
-                f"is not set.")
+            error_msg = (
+                f"API key for model provider '{self._model_provider}' "
+                f"is not set."
+            )
             self._logger.error(error_msg)
             raise ValueError(error_msg)
         try:
@@ -352,10 +361,10 @@ class Chatbot:
             error_msg = f"Failed to initialize chat model: {e}"
             self._logger.error(error_msg)
             raise e
-        
+
     def _create_agent(self) -> CompiledStateGraph:
         """Create the agent.
-        
+
         Returns:
             CompiledStateGraph: The created agent.
         Raises:
@@ -375,11 +384,10 @@ class Chatbot:
             error_msg = f"Failed to create agent: {e}"
             self._logger.error(error_msg)
             raise e
-        
+
     async def _async_get_response(
-            self,
-            user_message: HumanMessage
-        ) -> AIMessage | None:
+        self, user_message: HumanMessage
+    ) -> AIMessage | None:
         """Asynchronously get a response from the chatbot.
 
         Args:
@@ -407,7 +415,7 @@ class Chatbot:
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
-        
+
         Args:
             model_provider (str | None): The model provider to set. If None,
                 the model provider is unset.
@@ -434,7 +442,7 @@ class Chatbot:
 
     def set_model_name(self, model_name: str | None) -> None:
         """Set the model name.
-        
+
         Args:
             model_name (str | None): The model name to set. If None, the model
                 name is unset.
@@ -445,13 +453,14 @@ class Chatbot:
         """
         if model_name is not None:
             if self._model_provider is None:
-                error_msg = ("Model provider must be set before setting the "
-                    "model name.")
+                error_msg = (
+                    "Model provider must be set before setting the model name."
+                )
                 self._logger.error(error_msg)
                 raise ValueError(error_msg)
             self._validate_string(model_name, "Model name")
             supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
-                self._model_provider, 
+                self._model_provider,
                 set(),
             )
             if model_name not in supported_models:
@@ -464,7 +473,7 @@ class Chatbot:
 
     def get_model_name(self) -> str | None:
         """Get the model name.
-        
+
         Returns:
             str | None: The model name, or None if not set.
         """
@@ -472,7 +481,7 @@ class Chatbot:
 
     def set_model_temperature(self, model_temperature: float) -> None:
         """Set the model temperature.
-        
+
         Args:
             model_temperature (float): The model temperature to set. Must be
                 in the range [0.0, 1.0].
@@ -481,14 +490,18 @@ class Chatbot:
             ValueError: If model_temperature is out of range.
         """
         if not isinstance(model_temperature, (int, float)):
-            error_msg = (f"Model temperature must be a number, got "
-                f"{type(model_temperature).__name__}")
+            error_msg = (
+                f"Model temperature must be a number, got "
+                f"{type(model_temperature).__name__}"
+            )
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         model_temperature = float(model_temperature)
         if not (0.0 <= model_temperature <= 1.0):
-            error_msg = (f"Model temperature {model_temperature} is out of "
-                f"range [0.0, 1.0]")
+            error_msg = (
+                f"Model temperature {model_temperature} is out of "
+                f"range [0.0, 1.0]"
+            )
             self._logger.error(error_msg)
             raise ValueError(error_msg)
         if model_temperature != self._model_temperature:
@@ -497,15 +510,15 @@ class Chatbot:
 
     def get_model_temperature(self) -> float:
         """Get the model temperature.
-        
+
         Returns:
             float: The model temperature.
         """
         return self._model_temperature
-    
+
     def set_system_message(self, system_message: str) -> None:
         """Set the system message.
-        
+
         Args:
             system_message (str): The system message to set.
         Raises:
@@ -519,7 +532,7 @@ class Chatbot:
 
     def get_system_message(self) -> str:
         """Get the system message.
-        
+
         Returns:
             str: The system message.
         """
@@ -527,7 +540,7 @@ class Chatbot:
 
     def set_api_key(self, model_provider: str, api_key: str) -> None:
         """Set the API key for a model provider.
-        
+
         Args:
             model_provider (str): The model provider.
             api_key (str): The API key to set.
@@ -544,87 +557,88 @@ class Chatbot:
 
     def get_api_key(self, model_provider: str) -> str | None:
         """Get the API key for a model provider.
-        
+
         Args:
             model_provider (str): The model provider.
         Returns:
             str | None: The API key for the model provider, or None if not set.
         """
         return self._api_key.get(model_provider, None)
-        
+
     def get_response(self, user_message: HumanMessage) -> AIMessage | None:
         """Generate a response to the user's message using the configured LLM.
-        
+
         This is the main interface for chatbot interactions. The method handles
         the complete conversation flow including model initialization, message
         processing, response generation, and history management.
-        
+
         Process Flow:
             1. Validates the input message type
             2. Initializes model and agent if not already done
             3. Processes the message asynchronously
             4. Updates conversation history
             5. Returns the AI-generated response
-        
+
         Args:
             user_message (HumanMessage): The user's input message. Must be a
                 LangChain HumanMessage object containing the text content.
-        
+
         Returns:
             AIMessage | None: The AI assistant's response message containing:
                 - content: The response text
                 - metadata: Additional response information
                 Returns None only if a critical error occurs during processing.
-        
+
         Raises:
             TypeError: If user_message is not a HumanMessage instance.
             ValueError: If the chatbot is not properly configured (missing
                 provider, model name, or API key).
             Exception: If there are network issues, API errors, or other
                 failures during response generation.
-        
+
         Configuration Requirements:
             Before calling this method, ensure:
             - Model provider is set (set_model_provider)
-            - Model name is set (set_model_name) 
+            - Model name is set (set_model_name)
             - API key is set for the provider (set_api_key)
-        
+
         Example:
             >>> from langchain_core.messages import HumanMessage
-            >>> 
             >>> # Configure chatbot
             >>> chatbot = Chatbot()
             >>> chatbot.set_model_provider("openai")
             >>> chatbot.set_model_name("gpt-4")
             >>> chatbot.set_api_key("openai", "your-api-key")
-            >>> 
             >>> # Get response
             >>> user_msg = HumanMessage("What is machine learning?")
             >>> response = chatbot.get_response(user_msg)
             >>> print(response.content)
             "Machine learning is a subset of artificial intelligence..."
-            
+
             >>> # Continue conversation
             >>> follow_up = HumanMessage("Can you give me an example?")
             >>> response2 = chatbot.get_response(follow_up)
-        
+
         Performance Notes:
             - First call may be slower due to model initialization
-            - Subsequent calls reuse the initialized model for better performance
+            - Subsequent calls reuse the initialized model for better
+                performance
             - Conversation history grows with each exchange
             - Network latency affects response time depending on the provider
-        
+
         Thread Safety:
             This method is not thread-safe. Use separate Chatbot instances
             for concurrent conversations in multi-threaded applications.
         """
         if not isinstance(user_message, HumanMessage):
-            error_msg = (f"user_message must be a HumanMessage, got "
-                f"{type(user_message).__name__}")
+            error_msg = (
+                f"user_message must be a HumanMessage, got "
+                f"{type(user_message).__name__}"
+            )
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         return self._run_async(self._async_get_response(user_message))
-    
+
     def get_chat_history(self) -> list[HumanMessage | AIMessage]:
         """Return the chat history.
 
@@ -632,7 +646,7 @@ class Chatbot:
             list[HumanMessage | AIMessage]: The chat history.
         """
         return self._chat_history.copy()
-    
+
     def get_supported_providers(self) -> set[str]:
         """Get the set of supported model providers.
 
@@ -640,7 +654,7 @@ class Chatbot:
             set[str]: The supported model providers.
         """
         return self._SUPPORTED_PROVIDERS.copy()
-    
+
     def get_supported_models_by_provider(self, model_provider: str) -> set[str]:
         """Get the set of supported models for a given provider.
 
@@ -651,7 +665,7 @@ class Chatbot:
                 not found.
         """
         supported_models = self._SUPPORTED_MODELS_BY_PROVIDER.get(
-            model_provider, 
+            model_provider,
             set(),
         )
         return supported_models.copy()

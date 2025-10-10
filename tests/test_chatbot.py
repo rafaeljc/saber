@@ -6,7 +6,7 @@ Testing Patterns:
     - Consistent test setup with predefined configurations
     - Reusable chatbot instances for different test scenarios
     - Isolation between test cases
-    
+
     **Validation Strategy:**
     - Positive testing: Valid inputs produce expected results
     - Negative testing: Invalid inputs raise appropriate exceptions
@@ -16,10 +16,10 @@ Testing Patterns:
 Usage:
     Run all tests:
         $ pytest tests/test_chatbot.py
-    
+
     Run specific test class:
         $ pytest tests/test_chatbot.py::TestModelProviderAttributeManagement
-    
+
     Run with coverage:
         $ pytest tests/test_chatbot.py --cov=saber.chatbot
 
@@ -39,14 +39,14 @@ class TestModelProviderAttributeManagement:
     """This test class validates the complete lifecycle of model provider
     management, including selection, validation, error handling, and
     state transitions.
-    
+
     Test Coverage:
         - **Type Validation**: Ensures only string or None types accepted
         - **Provider Validation**: Verifies only supported providers allowed
         - **State Management**: Confirms proper attribute updates and resets
         - **Error Handling**: Validates appropriate exception types and messages
         - **Dependency Management**: Tests provider-model relationship handling
-        
+
     Critical Behaviors Tested:
         - Invalid providers rejected with ValueError
         - Invalid types rejected with TypeError
@@ -61,31 +61,31 @@ class TestModelProviderAttributeManagement:
         for testing provider-related operations. The instance has a valid
         provider set but no model name, allowing tests to verify provider
         functionality and provider-model dependencies.
-        
+
         Configuration:
             - Provider: "google_genai" (valid, supported provider)
             - Model: None (not set, ready for model selection tests)
             - API Key: None (not set, prevents actual API calls)
-        
+
         Returns:
             Chatbot: Configured instance ready for provider testing
         """
         cb = Chatbot()
         cb.set_model_provider("google_genai")
         return cb
-    
+
     @pytest.fixture
     def chatbot_with_model(self):
         """Provides a chatbot instance in a more complete configuration state,
         suitable for testing operations that require both provider and model
         to be set. This fixture is used to test dependency relationships
         and state transitions.
-        
+
         Configuration:
             - Provider: "google_genai" (valid, supported provider)
             - Model: "gemini-2.5-flash" (valid model for the provider)
             - API Key: None (not set, prevents actual API calls)
-        
+
         Returns:
             Chatbot: Fully configured instance ready for advanced testing
         """
@@ -98,12 +98,12 @@ class TestModelProviderAttributeManagement:
         """Validates that the chatbot properly validates input types and raises
         appropriate exceptions for non-string, non-None values. This ensures
         type safety and prevents configuration corruption from invalid inputs.
-        
+
         Test Strategy:
             - Arrange: Get current provider value for comparison
             - Act: Attempt to set invalid type (integer)
             - Assert: TypeError raised, original value preserved
-        
+
         Error Handling Verification:
             - Exception type: TypeError (not ValueError or generic Exception)
             - State preservation: Original value remains unchanged
@@ -148,7 +148,7 @@ class TestModelNameAttributeManagement:
     """This test class validates model name selection within provider
     constraints, ensuring proper validation of provider-model compatibility and
     dependency management.
-    
+
     Test Coverage:
         - **Provider Dependency**: Model selection requires valid provider
         - **Model Validation**: Only provider-compatible models accepted
@@ -169,7 +169,7 @@ class TestModelNameAttributeManagement:
         cb.set_model_provider("google_genai")
         cb.set_model_name("gemini-2.5-flash")
         return cb
-    
+
     @pytest.fixture
     def chatbot_no_provider(self):
         """Create a Chatbot instance with no predefined model provider."""
@@ -177,7 +177,7 @@ class TestModelNameAttributeManagement:
         return cb
 
     def test_set_invalid_type(self, chatbot):
-        """Test setting an invalid type raises TypeError and does not change 
+        """Test setting an invalid type raises TypeError and does not change
         the value.
         """
         prev_value = chatbot.get_model_name()
@@ -193,7 +193,7 @@ class TestModelNameAttributeManagement:
         assert chatbot.get_model_name() == valid_string
 
     def test_set_invalid_string(self, chatbot):
-        """Test setting invalid string raises ValueError and does not 
+        """Test setting invalid string raises ValueError and does not
         change the value.
         """
         prev_value = chatbot.get_model_name()
@@ -218,7 +218,7 @@ class TestModelNameAttributeManagement:
         assert chatbot_no_provider.get_model_name() is None
 
     def test_set_valid_string_with_no_provider(self, chatbot_no_provider):
-        """Test setting a valid string with no provider raises ValueError and 
+        """Test setting a valid string with no provider raises ValueError and
         does not change the value.
         """
         prev_value = chatbot_no_provider.get_model_name()
@@ -239,7 +239,7 @@ class TestModelTemperatureAttributeManagement:
         return cb
 
     def test_set_invalid_type(self, chatbot):
-        """Test setting an invalid type raises TypeError and does not change 
+        """Test setting an invalid type raises TypeError and does not change
         the value.
         """
         prev_value = chatbot.get_model_temperature()
@@ -249,7 +249,7 @@ class TestModelTemperatureAttributeManagement:
         assert chatbot.get_model_temperature() == prev_value
 
     def test_set_out_of_bounds(self, chatbot):
-        """Test setting out-of-bounds values raises ValueError and does not 
+        """Test setting out-of-bounds values raises ValueError and does not
         change the value.
         """
         prev_value = chatbot.get_model_temperature()
@@ -282,7 +282,7 @@ class TestSystemMessageAttributeManagement:
         return cb
 
     def test_set_invalid_type(self, chatbot):
-        """Test setting an invalid type raises TypeError and does not change 
+        """Test setting an invalid type raises TypeError and does not change
         the value.
         """
         prev_value = chatbot.get_system_message()
@@ -298,7 +298,7 @@ class TestSystemMessageAttributeManagement:
         assert chatbot.get_system_message() == valid_string
 
     def test_set_invalid_string(self, chatbot):
-        """Test setting an invalid string raises ValueError and does not change 
+        """Test setting an invalid string raises ValueError and does not change
         the value.
         """
         prev_value = chatbot.get_system_message()
@@ -332,7 +332,7 @@ class TestAPIKeyAttributeManagement:
         return cb
 
     def test_set_invalid_type(self, chatbot, chatbot_with_api_key):
-        """Test setting an invalid type raises TypeError and does not change 
+        """Test setting an invalid type raises TypeError and does not change
         the value.
         """
         valid_provider = "google_genai"
@@ -358,7 +358,7 @@ class TestAPIKeyAttributeManagement:
         assert chatbot_with_api_key.get_api_key("google_genai") == new_api_key
 
     def test_set_invalid_string(self, chatbot, chatbot_with_api_key):
-        """Test setting an invalid string raises ValueError and does not change 
+        """Test setting an invalid string raises ValueError and does not change
         the value.
         """
         invalid_provider = "unsupported_provider"
@@ -390,7 +390,7 @@ class TestAPIKeyAttributeManagement:
         assert chatbot.get_api_key(None) is None
 
     def test_set_none(self, chatbot, chatbot_with_api_key):
-        """Test setting None as provider or API key raises TypeError and does 
+        """Test setting None as provider or API key raises TypeError and does
         not change the value.
         """
         valid_provider = "openai"
@@ -417,7 +417,7 @@ class TestGetResponseMethod:
         - **Message Type Validation**: Ensures only HumanMessage accepted
         - **Error Handling**: Tests exception scenarios and error messages
         - **State Consistency**: Verifies configuration remains intact
-    
+
     Critical Requirements Tested:
         - A valid API key must be provided
         - Input must be valid HumanMessage instance
@@ -434,7 +434,7 @@ class TestGetResponseMethod:
         return cb
 
     def test_get_response_invalid_type(self, chatbot):
-        """Test passing an invalid type to get_response raises TypeError and 
+        """Test passing an invalid type to get_response raises TypeError and
         does not change the chat history.
         """
         invalid_type = 12345
@@ -443,7 +443,7 @@ class TestGetResponseMethod:
         assert len(chatbot.get_chat_history()) == 0
 
     def test_get_response_unexpected_exception(self, chatbot):
-        """Test that an unexpected exception is handled and does not change the 
+        """Test that an unexpected exception is handled and does not change the
         chat history.
         """
         message = HumanMessage("Valid user input")
