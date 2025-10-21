@@ -58,6 +58,7 @@ Performance Notes:
 import asyncio
 import atexit
 import logging
+import platformdirs
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
@@ -65,7 +66,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine
 from langchain_core.messages import HumanMessage, AIMessage
-
+from pathlib import Path
 
 class Chatbot:
     """The Chatbot class provides a high-level interface for interacting with
@@ -147,6 +148,9 @@ class Chatbot:
         The chatbot requires additional configuration (provider, model, API key)
         before it can generate responses.
 
+        Raises:
+            RuntimeError: If the base directory cannot be set.
+
         Initialization Process:
             - Sets up logging
             - Initializes all configuration attributes to defaults
@@ -201,8 +205,28 @@ class Chatbot:
         self._model = None
         self._agent = None
         self._chat_history = []
+        self._base_dir = self._get_or_create_base_dir()
         self._event_loop = None
         atexit.register(self._cleanup_event_loop)
+
+    def _get_or_create_base_dir(self) -> Path:
+        """Get or create the base directory for the application files based on
+        the operating system.
+
+        Returns:
+            Path: The base directory path for application files.
+
+        Raises:
+            RuntimeError: If the base directory cannot be set.
+        """
+        try:
+            base_dir = Path(platformdirs.user_data_dir("saber"))
+            base_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            error_msg = f"Error setting base directory: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return base_dir
 
     def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
         """Setup the event loop for asynchronous operations.
