@@ -857,3 +857,10 @@ class Chatbot:
         except Exception as e:
             raise RuntimeError(f"Error deleting files: {e}")
     
+    def get_uploaded_files_list(self) -> list[str]:
+        """Get the list of uploaded files.
+
+        Returns:
+            list[str]: A list of uploaded file names.
+        """
+        return list(self._uploaded_files.keys())
