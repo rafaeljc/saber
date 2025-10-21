@@ -507,6 +507,30 @@ class Chatbot:
         except Exception as e:
             raise RuntimeError(f"Error writing file {file_path}: {e}")
         return AsyncPath(file_path)
+    
+    async def _async_delete_file(self, file_path: AsyncPath) -> None:
+        """Asynchronously delete a file.
+
+        Args:
+            file_path (AsyncPath): The path of the file to delete.
+
+        Raises:
+            TypeError: If file_path is not an AsyncPath object.
+            RuntimeError: If there is an error deleting the file.
+        """
+        if not isinstance(file_path, AsyncPath):
+            error_msg = (
+                f"file_path must be an AsyncPath object, "
+                f"got {type(file_path).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        try:
+            await file_path.unlink(missing_ok=True)
+        except Exception as e:
+            error_msg = f"Error deleting file {file_path}: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
@@ -803,3 +827,33 @@ class Chatbot:
                 self._uploaded_files[filename] = file_path
         except Exception as e:
             raise e
+
+    def delete_uploaded_files(self, files: list[str]) -> None:
+        """Delete uploaded files.
+
+        Args:
+            files (list[str]): The list of file names to delete.
+
+        Raises:
+            TypeError: If files is not a list of strings.
+            ValueError: If any filename is empty or the file was not uploaded.
+            RuntimeError: If there is an error deleting the files.
+        """
+        if not isinstance(files, list):
+            error_msg = f"Files must be a list, got {type(files).__name__}"
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for filename in files:
+            self._validate_string(filename, "Filename in files list")
+            if filename not in self._uploaded_files:
+                error_msg = f"File {filename} was not uploaded."
+                self._logger.error(error_msg)
+                raise ValueError(error_msg)
+        try:
+            for filename in files:
+                file_path = self._uploaded_files[filename]
+                self._run_async(self._async_delete_file(file_path))
+                del self._uploaded_files[filename]
+        except Exception as e:
+            raise RuntimeError(f"Error deleting files: {e}")
+    
