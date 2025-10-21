@@ -67,6 +67,7 @@ from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
+from aiopath import AsyncPath
 
 class Chatbot:
     """The Chatbot class provides a high-level interface for interacting with
@@ -149,7 +150,8 @@ class Chatbot:
         before it can generate responses.
 
         Raises:
-            RuntimeError: If the base directory cannot be set.
+            RuntimeError: If the base directory cannot be set or files from the
+                uploads folder cannot be retrieved.
 
         Initialization Process:
             - Sets up logging
@@ -206,6 +208,7 @@ class Chatbot:
         self._agent = None
         self._chat_history = []
         self._base_dir = self._get_or_create_base_dir()
+        self._uploaded_files = self._get_uploaded_files()
         self._event_loop = None
         atexit.register(self._cleanup_event_loop)
 
@@ -227,6 +230,32 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         return base_dir
+    
+    def _get_uploaded_files(self) -> dict[str, AsyncPath]:
+        """Get the files stored in the uploads folder.
+
+        Returns:
+            dict[str, AsyncPath]: A dictionary mapping file names to their
+                paths.
+
+        Raises:
+            RuntimeError: If an uploaded file cannot be retrieved.
+
+        Note:
+            This method assumes that self._base_dir has been properly set. 
+        """
+        uploaded_files = {}
+        try:
+            uploads_path = self._base_dir / "uploads"
+            if uploads_path.exists() and uploads_path.is_dir():
+                for path in uploads_path.iterdir():
+                    if path.is_file():
+                        uploaded_files[path.name] = AsyncPath(path)
+        except Exception as e:
+            error_msg = f"Error getting uploaded files: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return uploaded_files
 
     def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
         """Setup the event loop for asynchronous operations.
