@@ -55,6 +55,7 @@ Performance Notes:
     - Conversation history is stored in memory
 """
 
+import aiofiles
 import asyncio
 import atexit
 import logging
@@ -465,6 +466,47 @@ class Chatbot:
         except Exception as e:
             self._logger.error(f"Error getting response: {e}")
             raise e
+        
+    async def _async_write_file(
+            self, folder: str, filename: str, content: bytes
+        ) -> AsyncPath:
+        """Asynchronously write content to a file in a specified folder within
+        the base directory.
+
+        Args:
+            folder (str): The folder within the base directory to write the
+                file to. It will be created if it does not exist.
+            filename (str): Name of the file to write.
+            content (bytes): Content to write to the file.
+        Returns:
+            AsyncPath: The path to the created file.
+        Raises:
+            TypeError: If folder or filename is not a string, or if content is
+                not bytes.
+            ValueError: If folder or filename is an empty string.
+            RuntimeError: If there is an error writing the file.
+        """
+        self._validate_string(folder, "Folder")
+        self._validate_string(filename, "Filename")
+        if not isinstance(content, bytes):
+            error_msg = (
+                f"Content must be bytes, got {type(content).__name__}")
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        folder_path = self._base_dir / folder
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            raise RuntimeError(f"Error creating directory {folder_path}: {e}")
+        file_path = folder_path / filename
+        if file_path.exists():
+            raise RuntimeError(f"File {file_path} already exists.")
+        try:
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(content)
+        except Exception as e:
+            raise RuntimeError(f"Error writing file {file_path}: {e}")
+        return AsyncPath(file_path)
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
@@ -722,3 +764,42 @@ class Chatbot:
             set(),
         )
         return supported_models.copy()
+    
+    def write_uploaded_files(self, files: list[tuple[str, bytes]]) -> None:
+        """Write uploaded files.
+
+        Args:
+            files (list[tuple[str, bytes]]): A list of tuples containing the
+                filename and content of each file.
+
+        Raises:
+            TypeError: If filename is not a string or content is not bytes.
+            ValueError: If filename is an empty string.
+            RuntimeError: If there is an error writing the file.
+        """
+        if not isinstance(files, list):
+            error_msg = f"Files must be a list, got {type(files).__name__}"
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for file in files:
+            if not isinstance(file, tuple) or len(file) != 2:
+                error_msg = (
+                    "Each file must be a tuple of (filename, content).")
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+            filename, content = file
+            self._validate_string(filename, "Filename")
+            if not isinstance(content, bytes):
+                error_msg = (
+                    f"Content for {filename} must be bytes, "
+                    f"got {type(content).__name__}"
+                )
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+        try:
+            for filename, content in files:
+                file_path = self._run_async(
+                    self._async_write_file("uploads", filename, content))
+                self._uploaded_files[filename] = file_path
+        except Exception as e:
+            raise e
