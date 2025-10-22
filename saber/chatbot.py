@@ -213,10 +213,7 @@ class Chatbot:
             Exception: If unable to create or get an event loop.
         """
         try:
-            event_loop = asyncio.get_event_loop()
-            if event_loop.is_closed():
-                event_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(event_loop)
+            event_loop = asyncio.get_running_loop()
         except RuntimeError:
             event_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(event_loop)
