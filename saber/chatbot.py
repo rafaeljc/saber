@@ -7,6 +7,7 @@ Key Features:
     - **Memory Management**: Persistent conversation history within sessions
     - **Configuration Flexibility**: Adjustable temperature, system messages,
         and models
+    - **File Management**: Upload, view, and delete files within sessions
 
 Example Usage:
     Basic chatbot setup and usage:
@@ -121,6 +122,8 @@ class Chatbot:
         _model (BaseChatModel | None): Current chat model instance
         _agent (CompiledStateGraph | None): Current agent instance
         _chat_history (list): Conversation history
+        _base_dir (Path): Base directory for file storage
+        _uploaded_files (dict[str, AsyncPath]): Uploaded files mapping
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
@@ -791,7 +794,7 @@ class Chatbot:
 
         Args:
             files (list[tuple[str, bytes]]): A list of tuples containing the
-                filename and content of each file.
+                filename and content of each file (filename, content).
 
         Raises:
             TypeError: If filename is not a string or content is not bytes.

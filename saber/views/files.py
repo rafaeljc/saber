@@ -1,3 +1,25 @@
+"""This module provides a interface for uploading, viewing, and managing files
+that can be processed by the chatbot. It handles file operations through the
+chatbot's file storage system with proper error handling.
+
+Supported File Types:
+    - Text files (.txt)
+    - PDF documents (.pdf) 
+    - Word documents (.docx)
+
+Example Flow:
+    1. User navigates to Files page
+    2. Selects a file using the upload widget
+    3. File is validated and stored via chatbot instance
+    4. Success message displayed, file appears in management interface
+    5. User can view uploaded files and optionally delete them
+
+Note:
+    This module requires the chatbot to be properly initialized in the session
+    state. All configuration changes are applied immediately and persist
+    throughout the session.
+"""
+
 import streamlit as st
 
 
@@ -8,13 +30,17 @@ chatbot = st.session_state.get("chatbot", None)
 
 def upload_new_file() -> None:
     """Display file upload interface and handle file saving.
-    
+
+    Layout:
+        **File Upload**
+        - Single file upload widget
+        - Supports: .txt, .pdf, .docx
+
     Note:
-        Because Streamlit's file_uploader widget has a bad behavior on handling
-        multiple file uploads in certain contexts (i.e. Streamlit reruns the app
-        and tries to upload the same files again when the user closes any dialog
-        box opened after a successful upload), this function handles only single
-        file uploads at a time.
+        This function handles only single file uploads to avoid Streamlit's
+        problematic behavior with multiple file uploads, where the widget
+        may retrigger upload operations during app reruns when users dismiss
+        dialog boxes after successful uploads.
     """
     st.subheader("📤 Upload New File")
     uploaded_file = st.file_uploader(
@@ -31,7 +57,18 @@ def upload_new_file() -> None:
 
 
 def show_uploaded_files() -> None:
-    """Display the uploaded files and delete them."""
+    """Display uploaded files management interface with deletion capabilities.
+    
+    Layout:
+        **Uploaded Files**
+        - List of uploaded files with checkboxes for selection
+        - Delete button to remove selected files
+
+    Note:
+        Uses forms widget to prevent unwanted app reruns when users interact
+        with checkboxes. The form submit button ensures operations only occur
+        when explicitly triggered by the user.
+    """
     st.subheader("📎 Uploaded Files")
     uploaded_files = chatbot.get_uploaded_files_list()
     if uploaded_files:
@@ -63,7 +100,7 @@ def show_uploaded_files() -> None:
 
 
 def files_page() -> None:
-    """Display the uploaded files management interface."""
+    """Display the complete file management interface."""
     st.title("Files")
     upload_new_file()
     show_uploaded_files()
