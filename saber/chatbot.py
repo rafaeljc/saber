@@ -7,6 +7,7 @@ Key Features:
     - **Memory Management**: Persistent conversation history within sessions
     - **Configuration Flexibility**: Adjustable temperature, system messages,
         and models
+    - **File Management**: Upload, view, and delete files within sessions
 
 Example Usage:
     Basic chatbot setup and usage:
@@ -55,9 +56,11 @@ Performance Notes:
     - Conversation history is stored in memory
 """
 
+import aiofiles
 import asyncio
 import atexit
 import logging
+import platformdirs
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
@@ -65,6 +68,8 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine
 from langchain_core.messages import HumanMessage, AIMessage
+from pathlib import Path
+from aiopath import AsyncPath
 
 
 class Chatbot:
@@ -118,6 +123,8 @@ class Chatbot:
         _model (BaseChatModel | None): Current chat model instance
         _agent (CompiledStateGraph | None): Current agent instance
         _chat_history (list): Conversation history
+        _base_dir (Path): Base directory for file storage
+        _uploaded_files (dict[str, AsyncPath]): Uploaded files mapping
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
@@ -146,6 +153,10 @@ class Chatbot:
 
         The chatbot requires additional configuration (provider, model, API key)
         before it can generate responses.
+
+        Raises:
+            RuntimeError: If the base directory cannot be set or files from the
+                uploads folder cannot be retrieved.
 
         Initialization Process:
             - Sets up logging
@@ -201,8 +212,55 @@ class Chatbot:
         self._model = None
         self._agent = None
         self._chat_history = []
+        self._base_dir = self._get_or_create_base_dir()
+        self._uploaded_files = self._get_uploaded_files()
         self._event_loop = None
         atexit.register(self._cleanup_event_loop)
+
+    def _get_or_create_base_dir(self) -> Path:
+        """Get or create the base directory for the application files based on
+        the operating system.
+
+        Returns:
+            Path: The base directory path for application files.
+
+        Raises:
+            RuntimeError: If the base directory cannot be set.
+        """
+        try:
+            base_dir = Path(platformdirs.user_data_dir("saber"))
+            base_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            error_msg = f"Error setting base directory: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return base_dir
+
+    def _get_uploaded_files(self) -> dict[str, AsyncPath]:
+        """Get the files stored in the uploads folder.
+
+        Returns:
+            dict[str, AsyncPath]: A dictionary mapping file names to their
+                paths.
+
+        Raises:
+            RuntimeError: If an uploaded file cannot be retrieved.
+
+        Note:
+            This method assumes that self._base_dir has been properly set.
+        """
+        uploaded_files = {}
+        try:
+            uploads_path = self._base_dir / "uploads"
+            if uploads_path.exists() and uploads_path.is_dir():
+                for path in uploads_path.iterdir():
+                    if path.is_file():
+                        uploaded_files[path.name] = AsyncPath(path)
+        except Exception as e:
+            error_msg = f"Error getting uploaded files: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return uploaded_files
 
     def _get_or_create_event_loop(self) -> asyncio.AbstractEventLoop:
         """Setup the event loop for asynchronous operations.
@@ -213,10 +271,7 @@ class Chatbot:
             Exception: If unable to create or get an event loop.
         """
         try:
-            event_loop = asyncio.get_event_loop()
-            if event_loop.is_closed():
-                event_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(event_loop)
+            event_loop = asyncio.get_running_loop()
         except RuntimeError:
             event_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(event_loop)
@@ -412,6 +467,70 @@ class Chatbot:
         except Exception as e:
             self._logger.error(f"Error getting response: {e}")
             raise e
+
+    async def _async_write_file(
+        self, folder: str, filename: str, content: bytes
+    ) -> AsyncPath:
+        """Asynchronously write content to a file in a specified folder within
+        the base directory.
+
+        Args:
+            folder (str): The folder within the base directory to write the
+                file to. It will be created if it does not exist.
+            filename (str): Name of the file to write.
+            content (bytes): Content to write to the file.
+        Returns:
+            AsyncPath: The path to the created file.
+        Raises:
+            TypeError: If folder or filename is not a string, or if content is
+                not bytes.
+            ValueError: If folder or filename is an empty string.
+            RuntimeError: If there is an error writing the file.
+        """
+        self._validate_string(folder, "Folder")
+        self._validate_string(filename, "Filename")
+        if not isinstance(content, bytes):
+            error_msg = f"Content must be bytes, got {type(content).__name__}"
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        folder_path = self._base_dir / folder
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            raise RuntimeError(f"Error creating directory {folder_path}: {e}")
+        file_path = folder_path / filename
+        if file_path.exists():
+            raise RuntimeError(f"File {file_path} already exists.")
+        try:
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(content)
+        except Exception as e:
+            raise RuntimeError(f"Error writing file {file_path}: {e}")
+        return AsyncPath(file_path)
+
+    async def _async_delete_file(self, file_path: AsyncPath) -> None:
+        """Asynchronously delete a file.
+
+        Args:
+            file_path (AsyncPath): The path of the file to delete.
+
+        Raises:
+            TypeError: If file_path is not an AsyncPath object.
+            RuntimeError: If there is an error deleting the file.
+        """
+        if not isinstance(file_path, AsyncPath):
+            error_msg = (
+                f"file_path must be an AsyncPath object, "
+                f"got {type(file_path).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        try:
+            await file_path.unlink(missing_ok=True)
+        except Exception as e:
+            error_msg = f"Error deleting file {file_path}: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
@@ -669,3 +788,79 @@ class Chatbot:
             set(),
         )
         return supported_models.copy()
+
+    def write_uploaded_files(self, files: list[tuple[str, bytes]]) -> None:
+        """Write uploaded files.
+
+        Args:
+            files (list[tuple[str, bytes]]): A list of tuples containing the
+                filename and content of each file (filename, content).
+
+        Raises:
+            TypeError: If filename is not a string or content is not bytes.
+            ValueError: If filename is an empty string.
+            RuntimeError: If there is an error writing the file.
+        """
+        if not isinstance(files, list):
+            error_msg = f"Files must be a list, got {type(files).__name__}"
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for file in files:
+            if not isinstance(file, tuple) or len(file) != 2:
+                error_msg = "Each file must be a tuple of (filename, content)."
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+            filename, content = file
+            self._validate_string(filename, "Filename")
+            if not isinstance(content, bytes):
+                error_msg = (
+                    f"Content for {filename} must be bytes, "
+                    f"got {type(content).__name__}"
+                )
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+        try:
+            for filename, content in files:
+                file_path = self._run_async(
+                    self._async_write_file("uploads", filename, content)
+                )
+                self._uploaded_files[filename] = file_path
+        except Exception as e:
+            raise e
+
+    def delete_uploaded_files(self, files: list[str]) -> None:
+        """Delete uploaded files.
+
+        Args:
+            files (list[str]): The list of file names to delete.
+
+        Raises:
+            TypeError: If files is not a list of strings.
+            ValueError: If any filename is empty or the file was not uploaded.
+            RuntimeError: If there is an error deleting the files.
+        """
+        if not isinstance(files, list):
+            error_msg = f"Files must be a list, got {type(files).__name__}"
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for filename in files:
+            self._validate_string(filename, "Filename in files list")
+            if filename not in self._uploaded_files:
+                error_msg = f"File {filename} was not uploaded."
+                self._logger.error(error_msg)
+                raise ValueError(error_msg)
+        try:
+            for filename in files:
+                file_path = self._uploaded_files[filename]
+                self._run_async(self._async_delete_file(file_path))
+                del self._uploaded_files[filename]
+        except Exception as e:
+            raise RuntimeError(f"Error deleting files: {e}")
+
+    def get_uploaded_files_list(self) -> list[str]:
+        """Get the list of uploaded files.
+
+        Returns:
+            list[str]: A list of uploaded file names.
+        """
+        return list(self._uploaded_files.keys())

@@ -38,4 +38,10 @@ routes = (
         title="Settings",
         icon="⚙️",
     ),
+    # File management page - upload and manage uploaded files for the chatbot
+    st.Page(
+        "views/files.py",
+        title="Files",
+        icon="📁",
+    ),
 )

@@ -78,7 +78,10 @@ def main() -> None:
     """
     # Initialize chatbot instance in session state if not already present
     if "chatbot" not in st.session_state:
-        st.session_state.chatbot = Chatbot()
+        try:
+            st.session_state.chatbot = Chatbot()
+        except Exception as e:
+            st.error(f"Error initializing chatbot: {e}")
     # Run the navigation system with configured routes
     st.navigation(routes).run()
 
