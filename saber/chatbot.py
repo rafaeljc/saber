@@ -71,6 +71,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 from aiopath import AsyncPath
 
+
 class Chatbot:
     """The Chatbot class provides a high-level interface for interacting with
     various Large Language Model providers through a unified API. It handles
@@ -234,7 +235,7 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         return base_dir
-    
+
     def _get_uploaded_files(self) -> dict[str, AsyncPath]:
         """Get the files stored in the uploads folder.
 
@@ -246,7 +247,7 @@ class Chatbot:
             RuntimeError: If an uploaded file cannot be retrieved.
 
         Note:
-            This method assumes that self._base_dir has been properly set. 
+            This method assumes that self._base_dir has been properly set.
         """
         uploaded_files = {}
         try:
@@ -466,10 +467,10 @@ class Chatbot:
         except Exception as e:
             self._logger.error(f"Error getting response: {e}")
             raise e
-        
+
     async def _async_write_file(
-            self, folder: str, filename: str, content: bytes
-        ) -> AsyncPath:
+        self, folder: str, filename: str, content: bytes
+    ) -> AsyncPath:
         """Asynchronously write content to a file in a specified folder within
         the base directory.
 
@@ -489,8 +490,7 @@ class Chatbot:
         self._validate_string(folder, "Folder")
         self._validate_string(filename, "Filename")
         if not isinstance(content, bytes):
-            error_msg = (
-                f"Content must be bytes, got {type(content).__name__}")
+            error_msg = f"Content must be bytes, got {type(content).__name__}"
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         folder_path = self._base_dir / folder
@@ -507,7 +507,7 @@ class Chatbot:
         except Exception as e:
             raise RuntimeError(f"Error writing file {file_path}: {e}")
         return AsyncPath(file_path)
-    
+
     async def _async_delete_file(self, file_path: AsyncPath) -> None:
         """Asynchronously delete a file.
 
@@ -788,7 +788,7 @@ class Chatbot:
             set(),
         )
         return supported_models.copy()
-    
+
     def write_uploaded_files(self, files: list[tuple[str, bytes]]) -> None:
         """Write uploaded files.
 
@@ -807,8 +807,7 @@ class Chatbot:
             raise TypeError(error_msg)
         for file in files:
             if not isinstance(file, tuple) or len(file) != 2:
-                error_msg = (
-                    "Each file must be a tuple of (filename, content).")
+                error_msg = "Each file must be a tuple of (filename, content)."
                 self._logger.error(error_msg)
                 raise TypeError(error_msg)
             filename, content = file
@@ -823,7 +822,8 @@ class Chatbot:
         try:
             for filename, content in files:
                 file_path = self._run_async(
-                    self._async_write_file("uploads", filename, content))
+                    self._async_write_file("uploads", filename, content)
+                )
                 self._uploaded_files[filename] = file_path
         except Exception as e:
             raise e
@@ -856,7 +856,7 @@ class Chatbot:
                 del self._uploaded_files[filename]
         except Exception as e:
             raise RuntimeError(f"Error deleting files: {e}")
-    
+
     def get_uploaded_files_list(self) -> list[str]:
         """Get the list of uploaded files.
 

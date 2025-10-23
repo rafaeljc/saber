@@ -460,12 +460,12 @@ class TestUploadFileHandling:
     validation and error management.
 
     Test Coverage:
-        - **File Upload Operations**: 
+        - **File Upload Operations**:
           * write_uploaded_files() method validation
           * Multiple file handling and batch operations
 
         - **File Deletion Operations**:
-          * delete_uploaded_files() method validation  
+          * delete_uploaded_files() method validation
           * Bulk deletion operations and state management
 
         - **Error Scenarios**:
@@ -506,7 +506,7 @@ class TestUploadFileHandling:
 
     def test_write_uploaded_files_invalid(self, chatbot):
         """Test validation of invalid inputs to write_uploaded_files.
-        
+
         Validates that the method properly rejects all forms of invalid input
         and maintains file system state integrity during error conditions.
         """
@@ -521,11 +521,13 @@ class TestUploadFileHandling:
         invalid_content_type = "invalid_content_type"
         with pytest.raises(TypeError):
             chatbot.write_uploaded_files(
-                [(invalid_filename_type, b"valid_content")])
+                [(invalid_filename_type, b"valid_content")]
+            )
         assert len(chatbot.get_uploaded_files_list()) == 0
         with pytest.raises(TypeError):
             chatbot.write_uploaded_files(
-                [("valid_filename", invalid_content_type)])
+                [("valid_filename", invalid_content_type)]
+            )
         assert len(chatbot.get_uploaded_files_list()) == 0
         with pytest.raises(TypeError):
             chatbot.write_uploaded_files([(None, b"valid_content")])
@@ -539,14 +541,13 @@ class TestUploadFileHandling:
 
     def test_write_uploaded_files_valid(self, chatbot):
         """Test successful file upload operations and duplicate handling.
-        
+
         Validates the complete lifecycle of successful file uploads including
         multiple file processing, state updates, and duplicate file detection.
         """
         valid_filenames = ["file1", "file2"]
         valid_files = [
-            (filename, b"valid_content")
-            for filename in valid_filenames
+            (filename, b"valid_content") for filename in valid_filenames
         ]
         chatbot.write_uploaded_files(valid_files)
         uploaded_files = chatbot.get_uploaded_files_list()
@@ -564,7 +565,7 @@ class TestUploadFileHandling:
 
     def test_delete_uploaded_files_invalid(self, chatbot):
         """Test validation of invalid inputs to delete_uploaded_files.
-        
+
         Validates that the method properly rejects invalid deletion requests
         and preserves file system integrity during error conditions.
         """
@@ -606,15 +607,14 @@ class TestUploadFileHandling:
 
     def test_delete_uploaded_files_valid(self, chatbot):
         """Test successful file deletion operations and state management.
-        
+
         Validates the complete file deletion workflow including individual and
         partial deletions, with verification of state updates and file system
         consistency.
         """
         valid_filenames = ["file1", "file2"]
         valid_files = [
-            (filename, b"valid_content")
-            for filename in valid_filenames
+            (filename, b"valid_content") for filename in valid_filenames
         ]
         chatbot.write_uploaded_files(valid_files)
         chatbot.delete_uploaded_files([valid_filenames[0]])

@@ -4,7 +4,7 @@ chatbot's file storage system with proper error handling.
 
 Supported File Types:
     - Text files (.txt)
-    - PDF documents (.pdf) 
+    - PDF documents (.pdf)
     - Word documents (.docx)
 
 Example Flow:
@@ -44,7 +44,8 @@ def upload_new_file() -> None:
     """
     st.subheader("📤 Upload New File")
     uploaded_file = st.file_uploader(
-        "Choose a file", type=["txt", "pdf", "docx"])
+        "Choose a file", type=["txt", "pdf", "docx"]
+    )
     if uploaded_file:
         filename = uploaded_file.name
         try:
@@ -58,7 +59,7 @@ def upload_new_file() -> None:
 
 def show_uploaded_files() -> None:
     """Display uploaded files management interface with deletion capabilities.
-    
+
     Layout:
         **Uploaded Files**
         - List of uploaded files with checkboxes for selection
@@ -79,7 +80,8 @@ def show_uploaded_files() -> None:
                 if st.checkbox(filename, key=checkbox_key):
                     files_to_delete.append(filename)
             successful_deletion_msg = st.session_state.get(
-                "successful_deletion_msg", None)
+                "successful_deletion_msg", None
+            )
             if successful_deletion_msg:
                 st.success(successful_deletion_msg)
                 st.session_state["successful_deletion_msg"] = None
@@ -88,7 +90,8 @@ def show_uploaded_files() -> None:
                 try:
                     chatbot.delete_uploaded_files(files_to_delete)
                     st.session_state["successful_deletion_msg"] = (
-                        f"{len(files_to_delete)} files deleted successfully!")
+                        f"{len(files_to_delete)} files deleted successfully!"
+                    )
                     # Rerun to update the uploaded files after deletion
                     st.rerun()
                 except Exception as e:
