@@ -1,14 +1,17 @@
 [project]
 name = "saber"
-version = "0.1.0"
+version = "0.2.0"
 description = "Smart Assistant for Better Engineering and Research"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "aiofiles>=25.1.0",
+    "aiopath>=0.6.11",
     "langchain>=0.3.27",
     "langchain-google-genai>=2.1.9",
     "langchain-openai>=0.3.33",
     "langgraph>=0.6.5",
+    "platformdirs>=4.4.0",
     "streamlit>=1.48.1",
 ]
 
