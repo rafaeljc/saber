@@ -535,14 +535,14 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
     
-    async def _async_dump_documents_to_json(
+    async def _async_dump_documents_to_jsonl(
         self, documents: list[Document], file_path: AsyncPath
     ) -> None:
-        """Asynchronously dump documents to a JSON file.
+        """Asynchronously dump documents to a JSONL file.
 
         Args:
             documents (list[Document]): The list of Document objects to dump.
-            file_path (AsyncPath): The path of the JSON file to write to.
+            file_path (AsyncPath): The path of the JSONL file to write to.
 
         Raises:
             TypeError: If documents is not a list of Document objects, or if
@@ -572,24 +572,24 @@ class Chatbot:
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         try:
-            async with file_path.open("w") as json_file:
+            async with file_path.open("w") as jsonl_file:
                 for doc in documents:
-                    await json_file.write(f"{doc.model_dump_json()}\n")
+                    await jsonl_file.write(f"{doc.model_dump_json()}\n")
         except Exception as e:
             error_msg = f"Error dumping documents to {file_path}: {e}"
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
 
-    async def _async_load_documents_from_json(
+    async def _async_load_documents_from_jsonl(
         self, file_path: AsyncPath
     ) -> list[Document]:
-        """Asynchronously load documents from a JSON file.
+        """Asynchronously load documents from a JSONL file.
 
         Args:
-            file_path (AsyncPath): The path of the JSON file to load.
-        
+            file_path (AsyncPath): The path of the JSONL file to load.
+
         Returns:
-            list[Document]: A list of Document objects loaded from the JSON
+            list[Document]: A list of Document objects loaded from the JSONL
                 file.
 
         Raises:
@@ -605,8 +605,8 @@ class Chatbot:
             raise TypeError(error_msg)
         documents = []
         try:
-            async with file_path.open("r") as json_file:
-                async for line in json_file:
+            async with file_path.open("r") as jsonl_file:
+                async for line in jsonl_file:
                     if line.strip():  # Skip empty lines
                         data = json.loads(line)
                         documents.append(Document(**data))
