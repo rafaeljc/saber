@@ -533,7 +533,52 @@ class Chatbot:
             error_msg = f"Error deleting file {file_path}: {e}"
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
-        
+    
+    async def _async_dump_documents_to_json(
+        self, documents: list[Document], file_path: AsyncPath
+    ) -> None:
+        """Asynchronously dump documents to a JSON file.
+
+        Args:
+            documents (list[Document]): The list of Document objects to dump.
+            file_path (AsyncPath): The path of the JSON file to write to.
+
+        Raises:
+            TypeError: If documents is not a list of Document objects, or if
+                file_path is not an AsyncPath object.
+            RuntimeError: If there is an error dumping the documents.
+        """
+        if not isinstance(documents, list):
+            error_msg = (
+                f"documents must be a list of Document objects, "
+                f"got {type(documents).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for doc in documents:
+            if not isinstance(doc, Document):
+                error_msg = (
+                    f"All items in documents must be Document objects, "
+                    f"got {type(doc).__name__}"
+                )
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+        if not isinstance(file_path, AsyncPath):
+            error_msg = (
+                f"file_path must be an AsyncPath object, "
+                f"got {type(file_path).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        try:
+            async with file_path.open("w") as json_file:
+                for doc in documents:
+                    await json_file.write(f"{doc.model_dump_json()}\n")
+        except Exception as e:
+            error_msg = f"Error dumping documents to {file_path}: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
     async def _async_load_documents_from_json(
         self, file_path: AsyncPath
     ) -> list[Document]:
