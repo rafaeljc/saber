@@ -72,6 +72,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.documents import Document
 from pathlib import Path
 from aiopath import AsyncPath
+from langchain_docling.loader import DoclingLoader
 
 
 class Chatbot:
@@ -614,7 +615,39 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         return documents
-        
+    
+    async def _async_load_documents_from_file(
+        self, file_path: AsyncPath
+    ) -> list[Document]:
+        """Asynchronously load documents from a file.
+
+        Args:
+            file_path (AsyncPath): The path of the file to load.
+
+        Returns:
+            list[Document]: A list of Document objects loaded from the file.
+
+        Raises:
+            TypeError: If file_path is not an AsyncPath object.
+            RuntimeError: If there is an error loading the documents.
+        """
+        if not isinstance(file_path, AsyncPath):
+            error_msg = (
+                f"file_path must be an AsyncPath object, "
+                f"got {type(file_path).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        documents = []
+        try:
+            loader = DoclingLoader(str(file_path))
+            documents = await loader.aload()
+        except Exception as e:
+            error_msg = f"Error loading documents from {file_path}: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return documents
+
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
 
