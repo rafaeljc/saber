@@ -56,6 +56,7 @@ Performance Notes:
     - Conversation history is stored in memory
 """
 
+import json
 import aiofiles
 import asyncio
 import atexit
@@ -68,6 +69,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.documents import Document
 from pathlib import Path
 from aiopath import AsyncPath
 
@@ -531,7 +533,43 @@ class Chatbot:
             error_msg = f"Error deleting file {file_path}: {e}"
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
+        
+    async def _async_load_documents_from_json(
+        self, file_path: AsyncPath
+    ) -> list[Document]:
+        """Asynchronously load documents from a JSON file.
 
+        Args:
+            file_path (AsyncPath): The path of the JSON file to load.
+        
+        Returns:
+            list[Document]: A list of Document objects loaded from the JSON
+                file.
+
+        Raises:
+            TypeError: If file_path is not an AsyncPath object.
+            RuntimeError: If there is an error loading the documents.
+        """
+        if not isinstance(file_path, AsyncPath):
+            error_msg = (
+                f"file_path must be an AsyncPath object, "
+                f"got {type(file_path).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        documents = []
+        try:
+            async with file_path.open("r") as json_file:
+                async for line in json_file:
+                    if line.strip():  # Skip empty lines
+                        data = json.loads(line)
+                        documents.append(Document(**data))
+        except Exception as e:
+            error_msg = f"Error loading documents from {file_path}: {e}"
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        return documents
+        
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
 
