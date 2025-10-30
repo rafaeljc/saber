@@ -128,7 +128,7 @@ class Chatbot:
         _agent (CompiledStateGraph | None): Current agent instance
         _chat_history (list): Conversation history
         _base_dir (Path): Base directory for file storage
-        _uploaded_files (dict[str, AsyncPath]): Uploaded files mapping
+        _uploaded_files (dict[str, _FileInfo]): Uploaded files mapping
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
@@ -254,26 +254,32 @@ class Chatbot:
             raise RuntimeError(error_msg)
         return base_dir
 
-    def _get_uploaded_files(self) -> dict[str, AsyncPath]:
-        """Get the files stored in the uploads folder.
+    def _get_uploaded_files(self) -> dict[str, _FileInfo]:
+        """Get the files stored in the documents folder.
 
         Returns:
-            dict[str, AsyncPath]: A dictionary mapping file names to their
-                paths.
+            dict[str, _FileInfo]: A dictionary mapping file names to their
+                information.
 
         Raises:
-            RuntimeError: If an uploaded file cannot be retrieved.
+            RuntimeError: If a document file cannot be retrieved.
 
         Note:
             This method assumes that self._base_dir has been properly set.
         """
         uploaded_files = {}
         try:
-            uploads_path = self._base_dir / "uploads"
-            if uploads_path.exists() and uploads_path.is_dir():
-                for path in uploads_path.iterdir():
+            documents_path = self._base_dir / "documents"
+            if documents_path.exists() and documents_path.is_dir():
+                for path in documents_path.iterdir():
                     if path.is_file():
-                        uploaded_files[path.name] = AsyncPath(path)
+                        jsonl_path = AsyncPath(path)
+                        documents = self._run_async(
+                            self._async_load_documents_from_jsonl(jsonl_path)
+                        )
+                        uploaded_files[path.name] = self._FileInfo(
+                            jsonl_path=jsonl_path, documents=documents
+                        )
         except Exception as e:
             error_msg = f"Error getting uploaded files: {e}"
             self._logger.error(error_msg)
