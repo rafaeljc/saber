@@ -67,12 +67,13 @@ from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from typing import Any, Coroutine
+from typing import Any, Coroutine, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.documents import Document
 from pathlib import Path
 from aiopath import AsyncPath
 from langchain_docling.loader import DoclingLoader
+from dataclasses import dataclass
 
 
 class Chatbot:
@@ -130,6 +131,20 @@ class Chatbot:
         _uploaded_files (dict[str, AsyncPath]): Uploaded files mapping
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
+
+    @dataclass
+    class _FileInfo:
+        """Internal data structure to hold file-related information.
+        
+        Attributes:
+            jsonl_path (AsyncPath): The path to the JSONL file.
+            documents (list[Document]): The list of documents.
+            documents_ids (Optional[list[str]] = None): The list of documents
+                IDs.
+        """
+        jsonl_path: AsyncPath
+        documents: list[Document]
+        documents_ids: Optional[list[str]] = None
 
     _SUPPORTED_PROVIDERS = {
         "openai",
