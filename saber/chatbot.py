@@ -955,7 +955,19 @@ class Chatbot:
                 file_path = self._run_async(
                     self._async_write_file("uploads", filename, content)
                 )
-                self._uploaded_files[filename] = file_path
+                jsonl_path = file_path.with_suffix(".jsonl")
+                documents = self._run_async(
+                    self._async_load_documents_from_file(file_path)
+                )
+                self._run_async(
+                    self._async_dump_documents_to_jsonl(
+                        documents, jsonl_path
+                    )
+                )
+                self._uploaded_files[filename] = self._FileInfo(
+                    jsonl_path=jsonl_path, documents=documents
+                )
+                self._run_async(self._async_delete_file(file_path))
         except Exception as e:
             raise e
 
