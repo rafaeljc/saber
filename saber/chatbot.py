@@ -1000,8 +1000,9 @@ class Chatbot:
                 raise ValueError(error_msg)
         try:
             for filename in files:
-                file_path = self._uploaded_files[filename]
+                file_path = self._uploaded_files[filename].jsonl_path
                 self._run_async(self._async_delete_file(file_path))
+                # ToDo: Also remove associated documents from any Vector Stores
                 del self._uploaded_files[filename]
         except Exception as e:
             raise RuntimeError(f"Error deleting files: {e}")
