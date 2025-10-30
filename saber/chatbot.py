@@ -592,6 +592,23 @@ class Chatbot:
             )
             self._logger.error(error_msg)
             raise TypeError(error_msg)
+        documents_dir = self._base_dir / "documents"
+        if file_path.parent != AsyncPath(documents_dir):
+            error_msg = (
+                f"file_path must be within the documents directory, "
+                f"got {file_path.parent}"
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        try:
+            documents_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            error_msg = (
+                f"Error creating documents directory "
+                f"{documents_dir}: {e}"
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
         try:
             async with file_path.open("w") as jsonl_file:
                 for doc in documents:
