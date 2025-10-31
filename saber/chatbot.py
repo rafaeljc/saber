@@ -269,7 +269,7 @@ class Chatbot:
         try:
             documents_dir = self._base_dir / "documents"
             if await documents_dir.exists() and await documents_dir.is_dir():
-                for jsonl_path in documents_dir.iterdir():
+                async for jsonl_path in documents_dir.iterdir():
                     if await jsonl_path.is_file():
                         documents = await self._async_load_documents_from_jsonl(
                             jsonl_path
