@@ -57,7 +57,6 @@ Performance Notes:
 """
 
 import json
-import aiofiles
 import asyncio
 import atexit
 import logging
@@ -70,7 +69,6 @@ from langgraph.prebuilt import create_react_agent
 from typing import Any, Coroutine, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.documents import Document
-from pathlib import Path
 from aiopath import AsyncPath
 from langchain_docling.loader import DoclingLoader
 from dataclasses import dataclass
@@ -127,7 +125,7 @@ class Chatbot:
         _model (BaseChatModel | None): Current chat model instance
         _agent (CompiledStateGraph | None): Current agent instance
         _chat_history (list): Conversation history
-        _base_dir (Path): Base directory for file storage
+        _base_dir (AsyncPath): Base directory for file storage
         _uploaded_files (dict[str, _FileInfo]): Uploaded files mapping
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
@@ -214,6 +212,7 @@ class Chatbot:
             remains dormant until the first conversation request, when
             models and agents are lazily initialized.
         """
+        self._event_loop = None
         self._logger = logging.getLogger(self.__class__.__name__)
         self._model_provider = None
         self._model_name = None
@@ -230,31 +229,30 @@ class Chatbot:
         self._model = None
         self._agent = None
         self._chat_history = []
-        self._base_dir = self._get_or_create_base_dir()
-        self._uploaded_files = self._get_uploaded_files()
-        self._event_loop = None
+        self._base_dir = self._run_async(self._get_or_create_base_dir())
+        self._uploaded_files = self._run_async(self._get_uploaded_files())
         atexit.register(self._cleanup_event_loop)
 
-    def _get_or_create_base_dir(self) -> Path:
+    async def _get_or_create_base_dir(self) -> AsyncPath:
         """Get or create the base directory for the application files based on
         the operating system.
 
         Returns:
-            Path: The base directory path for application files.
+            AsyncPath: The base directory path for application files.
 
         Raises:
             RuntimeError: If the base directory cannot be set.
         """
         try:
-            base_dir = Path(platformdirs.user_data_dir("saber"))
-            base_dir.mkdir(parents=True, exist_ok=True)
+            base_dir = AsyncPath(platformdirs.user_data_dir("saber"))
+            await base_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             error_msg = f"Error setting base directory: {e}"
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         return base_dir
 
-    def _get_uploaded_files(self) -> dict[str, _FileInfo]:
+    async def _get_uploaded_files(self) -> dict[str, _FileInfo]:
         """Get the files stored in the documents folder.
 
         Returns:
@@ -269,15 +267,15 @@ class Chatbot:
         """
         uploaded_files = {}
         try:
-            documents_path = self._base_dir / "documents"
-            if documents_path.exists() and documents_path.is_dir():
-                for path in documents_path.iterdir():
-                    if path.is_file():
-                        jsonl_path = AsyncPath(path)
-                        documents = self._run_async(
-                            self._async_load_documents_from_jsonl(jsonl_path)
+            documents_dir = self._base_dir / "documents"
+            if await documents_dir.exists() and await documents_dir.is_dir():
+                for jsonl_path in documents_dir.iterdir():
+                    if await jsonl_path.is_file():
+                        documents = await self._async_load_documents_from_jsonl(
+                            jsonl_path
                         )
-                        uploaded_files[path.name] = self._FileInfo(
+                        filename = jsonl_path.name.split(".jsonl")[0]
+                        uploaded_files[filename] = self._FileInfo(
                             jsonl_path=jsonl_path, documents=documents
                         )
         except Exception as e:
@@ -519,18 +517,18 @@ class Chatbot:
             raise TypeError(error_msg)
         folder_path = self._base_dir / folder
         try:
-            folder_path.mkdir(parents=True, exist_ok=True)
+            await folder_path.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             raise RuntimeError(f"Error creating directory {folder_path}: {e}")
         file_path = folder_path / filename
-        if file_path.exists():
+        if await file_path.exists():
             raise RuntimeError(f"File {file_path} already exists.")
         try:
-            async with aiofiles.open(file_path, "wb") as f:
+            async with file_path.open("wb") as f:
                 await f.write(content)
         except Exception as e:
             raise RuntimeError(f"Error writing file {file_path}: {e}")
-        return AsyncPath(file_path)
+        return file_path
 
     async def _async_delete_file(self, file_path: AsyncPath) -> None:
         """Asynchronously delete a file.
@@ -593,7 +591,7 @@ class Chatbot:
             self._logger.error(error_msg)
             raise TypeError(error_msg)
         documents_dir = self._base_dir / "documents"
-        if file_path.parent != AsyncPath(documents_dir):
+        if file_path.parent != documents_dir:
             error_msg = (
                 f"file_path must be within the documents directory, "
                 f"got {file_path.parent}"
@@ -601,7 +599,7 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         try:
-            documents_dir.mkdir(parents=True, exist_ok=True)
+            await documents_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             error_msg = (
                 f"Error creating documents directory "
