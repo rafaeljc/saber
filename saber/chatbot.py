@@ -555,19 +555,26 @@ class Chatbot:
             raise RuntimeError(error_msg)
     
     async def _async_dump_documents_to_jsonl(
-        self, documents: list[Document], file_path: AsyncPath
-    ) -> None:
+        self, filename: str, documents: list[Document]
+    ) -> AsyncPath:
         """Asynchronously dump documents to a JSONL file.
 
         Args:
+            filename (str): The name of the ORIGINAL file.
             documents (list[Document]): The list of Document objects to dump.
-            file_path (AsyncPath): The path of the JSONL file to write to.
+
+        Returns:
+            AsyncPath: The path to the created JSONL file.
 
         Raises:
-            TypeError: If documents is not a list of Document objects, or if
-                file_path is not an AsyncPath object.
+            TypeError: If filename is not a valid string, or if documents is not
+                a list of Document objects.
             RuntimeError: If there is an error dumping the documents.
+
+        Note:
+            This method assumes that self._base_dir has been properly set.
         """
+        self._validate_string(filename, "Filename")
         if not isinstance(documents, list):
             error_msg = (
                 f"documents must be a list of Document objects, "
@@ -583,21 +590,7 @@ class Chatbot:
                 )
                 self._logger.error(error_msg)
                 raise TypeError(error_msg)
-        if not isinstance(file_path, AsyncPath):
-            error_msg = (
-                f"file_path must be an AsyncPath object, "
-                f"got {type(file_path).__name__}"
-            )
-            self._logger.error(error_msg)
-            raise TypeError(error_msg)
         documents_dir = self._base_dir / "documents"
-        if file_path.parent != documents_dir:
-            error_msg = (
-                f"file_path must be within the documents directory, "
-                f"got {file_path.parent}"
-            )
-            self._logger.error(error_msg)
-            raise RuntimeError(error_msg)
         try:
             await documents_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
@@ -607,14 +600,20 @@ class Chatbot:
             )
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
+        jsonl_path = documents_dir / f"{filename}.jsonl"
+        if await jsonl_path.exists():
+            error_msg = f"File {jsonl_path} already exists."
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
         try:
-            async with file_path.open("w") as jsonl_file:
+            async with jsonl_path.open("w") as jsonl_file:
                 for doc in documents:
                     await jsonl_file.write(f"{doc.model_dump_json()}\n")
         except Exception as e:
-            error_msg = f"Error dumping documents to {file_path}: {e}"
+            error_msg = f"Error dumping documents to {jsonl_path}: {e}"
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
+        return jsonl_path
 
     async def _async_load_documents_from_jsonl(
         self, file_path: AsyncPath
@@ -976,19 +975,23 @@ class Chatbot:
                 file_path = self._run_async(
                     self._async_write_file("uploads", filename, content)
                 )
-                jsonl_path = file_path.with_suffix(".jsonl")
-                documents = self._run_async(
-                    self._async_load_documents_from_file(file_path)
-                )
-                self._run_async(
-                    self._async_dump_documents_to_jsonl(
-                        documents, jsonl_path
+                try:
+                    documents = self._run_async(
+                        self._async_load_documents_from_file(file_path)
                     )
-                )
+                    jsonl_path = self._run_async(
+                        self._async_dump_documents_to_jsonl(
+                            filename, documents
+                        )
+                    )
+                except Exception as e:
+                    raise e
+                finally:
+                    # Cleanup the original uploaded file after processing
+                    self._run_async(self._async_delete_file(file_path))
                 self._uploaded_files[filename] = self._FileInfo(
                     jsonl_path=jsonl_path, documents=documents
                 )
-                self._run_async(self._async_delete_file(file_path))
         except Exception as e:
             raise e
 
