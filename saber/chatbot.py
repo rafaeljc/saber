@@ -66,7 +66,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain.chat_models import init_chat_model
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from typing import Any, Coroutine, Optional
+from typing import Any, Coroutine, Generator, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.documents import Document
 from aiopath import AsyncPath
@@ -778,7 +778,18 @@ class Chatbot:
             embedding = self._get_embedding(provider)
             self._embedding[provider] = embedding
         return InMemoryVectorStore(embedding=embedding)
-    
+
+    def _get_document_id(self) -> Generator[str, None, None]:
+        """Generate a unique document ID.
+
+        Yields:
+            str: The generated document ID.
+        """
+        id = 0
+        while True:
+            yield str(id)
+            id += 1
+
     def _add_documents_to_vector_store(
         self, provider: str, documents: list[Document], documents_ids: list[str]
     ) -> None:
@@ -788,7 +799,7 @@ class Chatbot:
             provider (str): The model provider.
             documents (list[Document]): The list of Document objects to add.
             documents_ids (list[str]): The list of documents IDs.
-        
+            
         Raises:
             TypeError: If provider is not a string, or if documents is not a
                 list of Document objects, or if documents_ids is not a list of
@@ -1192,8 +1203,17 @@ class Chatbot:
                 finally:
                     # Cleanup the original uploaded file after processing
                     self._run_async(self._async_delete_file(file_path))
+                documents_ids = [
+                    next(self._get_document_id()) for _ in documents
+                ]
+                for model_provider in self._vector_store.keys():
+                    self._add_documents_to_vector_store(
+                        model_provider, documents, documents_ids
+                    )
                 self._uploaded_files[filename] = self._FileInfo(
-                    jsonl_path=jsonl_path, documents=documents
+                    jsonl_path=jsonl_path,
+                    documents=documents,
+                    documents_ids=documents_ids,
                 )
         except Exception as e:
             raise e
