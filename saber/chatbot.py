@@ -72,6 +72,9 @@ from langchain_core.documents import Document
 from aiopath import AsyncPath
 from langchain_docling.loader import DoclingLoader
 from dataclasses import dataclass
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 
 
 class Chatbot:
@@ -127,6 +130,7 @@ class Chatbot:
         _chat_history (list): Conversation history
         _base_dir (AsyncPath): Base directory for file storage
         _uploaded_files (dict[str, _FileInfo]): Uploaded files mapping
+        _embedding (dict): Embedding models by provider
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
@@ -231,6 +235,7 @@ class Chatbot:
         self._chat_history = []
         self._base_dir = self._run_async(self._get_or_create_base_dir())
         self._uploaded_files = self._run_async(self._get_uploaded_files())
+        self._embedding = {}
         atexit.register(self._cleanup_event_loop)
 
     async def _get_or_create_base_dir(self) -> AsyncPath:
@@ -682,6 +687,73 @@ class Chatbot:
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         return documents
+
+    def _get_embedding(
+        self, provider: str,
+    ) -> GoogleGenerativeAIEmbeddings | OpenAIEmbeddings:
+        """Get the embedding model for a provider.
+
+        Args:
+            provider (str): The model provider.
+
+        Returns:
+            GoogleGenerativeAIEmbeddings | OpenAIEmbeddings: The embedding
+                model.
+        
+        Raises:
+            TypeError: If provider is not a string.
+            ValueError: If provider is not supported or empty.
+            RuntimeError: If the API key is not set or if the provider does not
+                have embeddings.
+        """
+        self._validate_model_provider(provider)
+        api_key = self.get_api_key(provider)
+        if api_key is None:
+            error_msg = f"API key for provider '{provider}' is not set."
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        api_key = SecretStr(api_key)
+        if provider == "google_genai":
+            return GoogleGenerativeAIEmbeddings(
+                model="models/gemini-embedding-001",
+                google_api_key=api_key,
+            )
+        elif provider == "openai":
+            return OpenAIEmbeddings(
+                model="text-embedding-3-large",
+                api_key=api_key,
+            )
+        else:
+            error_msg = f"Provider '{provider}' does not have embeddings."
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def _set_embedding_api_key(self, provider: str, api_key: str) -> None:
+        """Set the API key for the embedding model of a provider.
+
+        Args:
+            provider (str): The model provider.
+            api_key (str): The API key to set.
+
+        Raises:
+            TypeError: If provider or api_key is not a string.
+            ValueError: If provider is not supported or empty, or if api_key is
+                empty.
+            RuntimeError: If the embedding model is not initialized.
+        """
+        self._validate_model_provider(provider)
+        self._validate_string(api_key, "API key")
+        embedding = self._embedding.get(provider, None)
+        if embedding is None:
+            error_msg = (
+                f"Embedding for provider '{provider}' is not initialized."
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        if provider == "google_genai":
+            embedding.google_api_key = SecretStr(api_key)
+        elif provider == "openai":
+            embedding.api_key = SecretStr(api_key)
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
