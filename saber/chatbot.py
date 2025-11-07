@@ -1024,6 +1024,8 @@ class Chatbot:
         self._validate_string(api_key, "API key")
         if api_key != self._api_key.get(model_provider, None):
             self._api_key[model_provider] = api_key
+            if model_provider in self._embedding:
+                self._set_embedding_api_key(model_provider, api_key)
             self._reset_model_and_agent()
 
     def get_api_key(self, model_provider: str) -> str | None:
