@@ -692,12 +692,12 @@ class Chatbot:
         return documents
 
     def _get_embedding(
-        self, provider: str,
+        self, model_provider: str,
     ) -> GoogleGenerativeAIEmbeddings | OpenAIEmbeddings:
         """Get the embedding model for a provider.
 
         Args:
-            provider (str): The model provider.
+            model_provider (str): The model provider.
 
         Returns:
             GoogleGenerativeAIEmbeddings | OpenAIEmbeddings: The embedding
@@ -705,78 +705,78 @@ class Chatbot:
         
         Raises:
             TypeError: If provider is not a string.
-            ValueError: If provider is not supported or empty.
-            RuntimeError: If the API key is not set or if the provider does not
+            ValueError: If model_provider is not supported or empty.
+            RuntimeError: If the API key is not set or if the model_provider does not
                 have embeddings.
         """
-        self._validate_model_provider(provider)
-        api_key = self.get_api_key(provider)
+        self._validate_model_provider(model_provider)
+        api_key = self.get_api_key(model_provider)
         if api_key is None:
-            error_msg = f"API key for provider '{provider}' is not set."
+            error_msg = f"API key for model_provider '{model_provider}' is not set."
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         api_key = SecretStr(api_key)
-        if provider == "google_genai":
+        if model_provider == "google_genai":
             return GoogleGenerativeAIEmbeddings(
                 model="models/gemini-embedding-001",
                 google_api_key=api_key,
             )
-        elif provider == "openai":
+        elif model_provider == "openai":
             return OpenAIEmbeddings(
                 model="text-embedding-3-large",
                 api_key=api_key,
             )
         else:
-            error_msg = f"Provider '{provider}' does not have embeddings."
+            error_msg = f"Provider '{model_provider}' does not have embeddings."
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
 
-    def _set_embedding_api_key(self, provider: str, api_key: str) -> None:
+    def _set_embedding_api_key(self, model_provider: str, api_key: str) -> None:
         """Set the API key for the embedding model of a provider.
 
         Args:
-            provider (str): The model provider.
+            model_provider (str): The model provider.
             api_key (str): The API key to set.
 
         Raises:
-            TypeError: If provider or api_key is not a string.
-            ValueError: If provider is not supported or empty, or if api_key is
+            TypeError: If model_provider or api_key is not a string.
+            ValueError: If model_provider is not supported or empty, or if api_key is
                 empty.
             RuntimeError: If the embedding model is not initialized.
         """
-        self._validate_model_provider(provider)
+        self._validate_model_provider(model_provider)
         self._validate_string(api_key, "API key")
-        embedding = self._embedding.get(provider, None)
+        embedding = self._embedding.get(model_provider, None)
         if embedding is None:
             error_msg = (
-                f"Embedding for provider '{provider}' is not initialized."
+                f"Embedding for provider '{model_provider}' is not initialized."
             )
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
-        if provider == "google_genai":
+        if model_provider == "google_genai":
             embedding.google_api_key = SecretStr(api_key)
-        elif provider == "openai":
+        elif model_provider == "openai":
             embedding.api_key = SecretStr(api_key)
 
-    def _get_vector_store(self, provider: str) -> InMemoryVectorStore:
+    def _get_vector_store(self, model_provider: str) -> InMemoryVectorStore:
         """Get the vector store for a provider.
 
         Args:
-            provider (str): The model provider.
+            model_provider (str): The model provider.
 
         Returns:
             InMemoryVectorStore: The vector store.
 
         Raises:
-            TypeError: If provider is not a string.
-            ValueError: If provider is not supported or empty.
+            TypeError: If model_provider is not a string.
+            ValueError: If model_provider is not supported or empty.
             RuntimeError: If the embedding model is not initialized.
         """
-        self._validate_model_provider(provider)
-        embedding = self._embedding.get(provider, None)
+        self._validate_model_provider(model_provider)
+        embedding = self._embedding.get(model_provider, None)
         if embedding is None:
-            embedding = self._get_embedding(provider)
-            self._embedding[provider] = embedding
+            embedding = self._get_embedding(model_provider)
+            self._embedding[model_provider] = embedding
         return InMemoryVectorStore(embedding=embedding)
 
     def _get_document_id(self) -> Generator[str, None, None]:
@@ -791,25 +791,25 @@ class Chatbot:
             id += 1
 
     def _add_documents_to_vector_store(
-        self, provider: str, documents: list[Document], documents_ids: list[str]
+        self, model_provider: str, documents: list[Document], documents_ids: list[str]
     ) -> None:
         """Add documents to the vector store for a provider.
 
         Args:
-            provider (str): The model provider.
+            model_provider (str): The model provider.
             documents (list[Document]): The list of Document objects to add.
             documents_ids (list[str]): The list of documents IDs.
             
         Raises:
-            TypeError: If provider is not a string, or if documents is not a
+            TypeError: If model_provider is not a string, or if documents is not a
                 list of Document objects, or if documents_ids is not a list of
                 strings.
-            ValueError: If provider is not supported or empty, or if any ID in
+            ValueError: If model_provider is not supported or empty, or if any ID in
                 documents_ids is not a valid string.
             RuntimeError: If any error occurs while adding documents to the
                 vector store.
         """
-        self._validate_model_provider(provider)
+        self._validate_model_provider(model_provider)
         if not isinstance(documents, list):
             error_msg = (
                 f"documents must be a list of Document objects, "
@@ -834,10 +834,10 @@ class Chatbot:
             raise TypeError(error_msg)
         for doc_id in documents_ids:
             self._validate_string(doc_id, "Document ID")
-        vector_store = self._vector_store.get(provider, None)
+        vector_store = self._vector_store.get(model_provider, None)
         if vector_store is None:
-            vector_store = self._get_vector_store(provider)
-            self._vector_store[provider] = vector_store
+            vector_store = self._get_vector_store(model_provider)
+            self._vector_store[model_provider] = vector_store
         try:
             vector_store.add_documents(
                 documents=documents,
@@ -845,30 +845,30 @@ class Chatbot:
             )
         except Exception as e:
             error_msg = (
-                f"Error adding documents to vector store for provider "
-                f"'{provider}': {e}"
+                f"Error adding documents to vector store for model provider "
+                f"'{model_provider}': {e}"
             )
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
         
     def _delete_documents_from_vector_store(
-        self, provider: str, documents_ids: list[str]
+        self, model_provider: str, documents_ids: list[str]
     ) -> None:
-        """Delete documents from the vector store for a provider.
+        """Delete documents from the vector store for a model provider.
 
         Args:
-            provider (str): The model provider.
+            model_provider (str): The model provider.
             documents_ids (list[str]): The list of documents IDs to delete.
         
         Raises:
-            TypeError: If provider is not a string, or if documents_ids is not
+            TypeError: If model_provider is not a string, or if documents_ids is not
                 a list of strings.
-            ValueError: If provider is not supported or empty, or if any ID in
+            ValueError: If model_provider is not supported or empty, or if any ID in
                 documents_ids is not a valid string.
             RuntimeError: If any error occurs while deleting documents from the
                 vector store.
         """
-        self._validate_model_provider(provider)
+        self._validate_model_provider(model_provider)
         if not isinstance(documents_ids, list):
             error_msg = (
                 f"documents_ids must be a list of strings, "
@@ -878,10 +878,10 @@ class Chatbot:
             raise TypeError(error_msg)
         for doc_id in documents_ids:
             self._validate_string(doc_id, "Document ID")
-        vector_store = self._vector_store.get(provider, None)
+        vector_store = self._vector_store.get(model_provider, None)
         if vector_store is None:
             error_msg = (
-                f"Vector store for provider '{provider}' is not initialized."
+                f"Vector store for model provider '{model_provider}' is not initialized."
             )
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
@@ -889,8 +889,8 @@ class Chatbot:
             vector_store.delete(ids=documents_ids)
         except Exception as e:
             error_msg = (
-                f"Error deleting documents from vector store for provider "
-                f"'{provider}': {e}"
+                f"Error deleting documents from vector store for model provider "
+                f"'{model_provider}': {e}"
             )
             self._logger.error(error_msg)
             raise RuntimeError(error_msg)
