@@ -75,6 +75,7 @@ from dataclasses import dataclass
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
+from langchain_core.vectorstores import InMemoryVectorStore
 
 
 class Chatbot:
@@ -131,6 +132,7 @@ class Chatbot:
         _base_dir (AsyncPath): Base directory for file storage
         _uploaded_files (dict[str, _FileInfo]): Uploaded files mapping
         _embedding (dict): Embedding models by provider
+        _vector_store (dict): Vector stores by provider
         _event_loop (AbstractEventLoop | None): Managed event loop instance
     """
 
@@ -236,6 +238,7 @@ class Chatbot:
         self._base_dir = self._run_async(self._get_or_create_base_dir())
         self._uploaded_files = self._run_async(self._get_uploaded_files())
         self._embedding = {}
+        self._vector_store = {}
         atexit.register(self._cleanup_event_loop)
 
     async def _get_or_create_base_dir(self) -> AsyncPath:
@@ -754,6 +757,132 @@ class Chatbot:
             embedding.google_api_key = SecretStr(api_key)
         elif provider == "openai":
             embedding.api_key = SecretStr(api_key)
+
+    def _get_vector_store(self, provider: str) -> InMemoryVectorStore:
+        """Get the vector store for a provider.
+
+        Args:
+            provider (str): The model provider.
+
+        Returns:
+            InMemoryVectorStore: The vector store.
+
+        Raises:
+            TypeError: If provider is not a string.
+            ValueError: If provider is not supported or empty.
+            RuntimeError: If the embedding model is not initialized.
+        """
+        self._validate_model_provider(provider)
+        embedding = self._embedding.get(provider, None)
+        if embedding is None:
+            embedding = self._get_embedding(provider)
+            self._embedding[provider] = embedding
+        return InMemoryVectorStore(embedding=embedding)
+    
+    def _add_documents_to_vector_store(
+        self, provider: str, documents: list[Document], documents_ids: list[str]
+    ) -> None:
+        """Add documents to the vector store for a provider.
+
+        Args:
+            provider (str): The model provider.
+            documents (list[Document]): The list of Document objects to add.
+            documents_ids (list[str]): The list of documents IDs.
+        
+        Raises:
+            TypeError: If provider is not a string, or if documents is not a
+                list of Document objects, or if documents_ids is not a list of
+                strings.
+            ValueError: If provider is not supported or empty, or if any ID in
+                documents_ids is not a valid string.
+            RuntimeError: If any error occurs while adding documents to the
+                vector store.
+        """
+        self._validate_model_provider(provider)
+        if not isinstance(documents, list):
+            error_msg = (
+                f"documents must be a list of Document objects, "
+                f"got {type(documents).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for doc in documents:
+            if not isinstance(doc, Document):
+                error_msg = (
+                    f"All items in documents must be Document objects, "
+                    f"got {type(doc).__name__}"
+                )
+                self._logger.error(error_msg)
+                raise TypeError(error_msg)
+        if not isinstance(documents_ids, list):
+            error_msg = (
+                f"documents_ids must be a list of strings, "
+                f"got {type(documents_ids).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for doc_id in documents_ids:
+            self._validate_string(doc_id, "Document ID")
+        vector_store = self._vector_store.get(provider, None)
+        if vector_store is None:
+            vector_store = self._get_vector_store(provider)
+            self._vector_store[provider] = vector_store
+        try:
+            vector_store.add_documents(
+                documents=documents,
+                ids=documents_ids,
+            )
+        except Exception as e:
+            error_msg = (
+                f"Error adding documents to vector store for provider "
+                f"'{provider}': {e}"
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+    def _delete_documents_from_vector_store(
+        self, provider: str, documents_ids: list[str]
+    ) -> None:
+        """Delete documents from the vector store for a provider.
+
+        Args:
+            provider (str): The model provider.
+            documents_ids (list[str]): The list of documents IDs to delete.
+        
+        Raises:
+            TypeError: If provider is not a string, or if documents_ids is not
+                a list of strings.
+            ValueError: If provider is not supported or empty, or if any ID in
+                documents_ids is not a valid string.
+            RuntimeError: If any error occurs while deleting documents from the
+                vector store.
+        """
+        self._validate_model_provider(provider)
+        if not isinstance(documents_ids, list):
+            error_msg = (
+                f"documents_ids must be a list of strings, "
+                f"got {type(documents_ids).__name__}"
+            )
+            self._logger.error(error_msg)
+            raise TypeError(error_msg)
+        for doc_id in documents_ids:
+            self._validate_string(doc_id, "Document ID")
+        vector_store = self._vector_store.get(provider, None)
+        if vector_store is None:
+            error_msg = (
+                f"Vector store for provider '{provider}' is not initialized."
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        try:
+            vector_store.delete(ids=documents_ids)
+        except Exception as e:
+            error_msg = (
+                f"Error deleting documents from vector store for provider "
+                f"'{provider}': {e}"
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     def set_model_provider(self, model_provider: str | None) -> None:
         """Set the model provider.
